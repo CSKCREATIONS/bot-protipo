@@ -183,6 +183,32 @@ class WhatsAppService {
       };
     }
   }
+
+  /**
+   * Descargar archivo multimedia
+   */
+  async downloadMedia(mediaUrl) {
+    try {
+      const response = await axios.get(mediaUrl, {
+        headers: {
+          'Authorization': `Bearer ${this.token}`
+        },
+        responseType: 'arraybuffer'
+      });
+
+      return {
+        success: true,
+        data: response.data,
+        contentType: response.headers['content-type']
+      };
+    } catch (error) {
+      console.error('Error descargando medio:', error.response?.data || error.message);
+      return {
+        success: false,
+        error: error.response?.data || error.message
+      };
+    }
+  }
 }
 
 module.exports = new WhatsAppService();

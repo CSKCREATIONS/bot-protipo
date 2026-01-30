@@ -20,7 +20,7 @@ const conversationSchema = new mongoose.Schema({
   },
   estado: {
     type: String,
-    enum: ['INICIO', 'ESPERANDO_PLACA', 'ESPERANDO_CEDULA', 'EN_COLA', 'ASIGNADO'],
+    enum: ['INICIO', 'ESPERANDO_NOMBRE', 'ESPERANDO_PLACA', 'ESPERANDO_CEDULA', 'EN_COLA', 'ASIGNADO'],
     default: 'INICIO'
   },
   messages: [{

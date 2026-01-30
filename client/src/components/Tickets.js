@@ -15,6 +15,15 @@ function Tickets() {
   const [showModal, setShowModal] = useState(false);
   const [modalMessage, setModalMessage] = useState('');
   const [lockedByAgent, setLockedByAgent] = useState(null);
+  
+  // Estados para modal de multimedia
+  const [showMediaModal, setShowMediaModal] = useState(false);
+  const [selectedMedia, setSelectedMedia] = useState(null);
+  const [mediaLoading, setMediaLoading] = useState(false);
+
+  // Estados para modal de estadísticas
+  const [showStatsModal, setShowStatsModal] = useState(false);
+  const [agentesStats, setAgentesStats] = useState([]);
 
   const token = localStorage.getItem('token');
 
@@ -197,6 +206,82 @@ function Tickets() {
     return new Date(fecha).toLocaleString('es-ES');
   };
 
+  const verEstadisticasAgentes = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/tickets/stats/agentes`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setAgentesStats(response.data);
+      setShowStatsModal(true);
+    } catch (error) {
+      console.error('Error cargando estadísticas de agentes:', error);
+      alert('Error al cargar estadísticas de agentes');
+    }
+  };
+
+  const exportarCSV = async () => {
+    try {
+      const params = {};
+      if (filtroEstado) params.estado = filtroEstado;
+      if (filtroPrioridad) params.prioridad = filtroPrioridad;
+      
+      const queryString = new URLSearchParams(params).toString();
+      const url = `${API_URL}/tickets/exportar/csv${queryString ? '?' + queryString : ''}`;
+      
+      // Usar fetch con headers de autorización
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Error al descargar CSV');
+      }
+      
+      // Crear blob y descargar
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = `tickets_${new Date().getTime()}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(downloadUrl);
+      
+      alert('Archivo CSV descargado correctamente');
+    } catch (error) {
+      console.error('Error exportando CSV:', error);
+      alert('Error al exportar CSV: ' + error.message);
+    }
+  };
+
+  const verArchivo = (archivo) => {
+    setSelectedMedia(archivo);
+    setShowMediaModal(true);
+  };
+
+  const getProxyUrl = (mediaUrl, mediaId) => {
+    const authToken = localStorage.getItem('token');
+    if (!authToken) return null;
+    
+    // Si hay mediaId, usarlo (URLs frescas)
+    if (mediaId) {
+      return `${API_URL}/tickets/media/download?mediaId=${mediaId}&token=${authToken}`;
+    }
+    
+    // Si no, usar la URL almacenada
+    if (mediaUrl) {
+      const encodedUrl = encodeURIComponent(mediaUrl);
+      return `${API_URL}/tickets/media/download?url=${encodedUrl}&token=${authToken}`;
+    }
+    
+    return null;
+  };
+
   return (
     <div className="tickets-container">
       {/* Panel de estadísticas */}
@@ -245,6 +330,22 @@ function Tickets() {
         <div className="tickets-list">
           <div className="tickets-header">
             <h2>🎫 Tickets</h2>
+            <div className="header-buttons">
+              <button 
+                onClick={verEstadisticasAgentes} 
+                className="btn-stats"
+                title="Ver estadísticas de agentes"
+              >
+                📊 Estadísticas
+              </button>
+              <button 
+                onClick={exportarCSV} 
+                className="btn-export"
+                title="Exportar a CSV"
+              >
+                📥 Exportar CSV
+              </button>
+            </div>
             <div className="filtros">
               <select value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value)}>
                 <option value="">Todos los estados</option>
@@ -271,6 +372,7 @@ function Tickets() {
               >
                 <div className="ticket-numero">{ticket.numeroTicket}</div>
                 <div className="ticket-info">
+                  <div className="ticket-nombre">👤 {ticket.nombreCliente || 'Sin nombre'}</div>
                   <div className="ticket-placa">🚗 {ticket.placa || 'Sin placa'}</div>
                   <div className="ticket-phone">📞 {ticket.phoneNumber}</div>
                   <div className="ticket-badges">
@@ -280,6 +382,7 @@ function Tickets() {
                     <span className={`badge-prioridad ${ticket.prioridad.toLowerCase()}`}>
                       {ticket.prioridad}
                     </span>
+                    <span className="badge-contador">#{ticket.contadorTickets || 1}</span>
                   </div>
                 </div>
                 <div className="ticket-fecha">
@@ -296,7 +399,11 @@ function Tickets() {
             <div className="detalle-header">
               <h2>{ticketSeleccionado.numeroTicket}</h2>
               <div className="detalle-acciones">
-                {ticketSeleccionado.estado !== 'CERRADO' && (
+                {ticketSeleccionado.estado === 'CERRADO' ? (
+                  <div className="ticket-cerrado-badge">
+                    ✅ Ticket Cerrado
+                  </div>
+                ) : (
                   <>
                     {!ticketSeleccionado.asignadoA && (
                       <button 
@@ -356,49 +463,137 @@ function Tickets() {
             <div className="detalle-info">
               <div className="info-grid">
                 <div className="info-item">
-                  <label>Teléfono:</label>
+                  <label>👤 Nombre Cliente:</label>
+                  <span><strong>{ticketSeleccionado.nombreCliente || 'Sin nombre'}</strong></span>
+                </div>
+                <div className="info-item">
+                  <label>📞 Teléfono:</label>
                   <span>{ticketSeleccionado.phoneNumber}</span>
                 </div>
                 <div className="info-item">
-                  <label>Placa:</label>
+                  <label>🚗 Placa:</label>
                   <span>{ticketSeleccionado.placa}</span>
                 </div>
                 <div className="info-item">
-                  <label>Cédula:</label>
+                  <label>🆔 Cédula:</label>
                   <span>{ticketSeleccionado.cedula}</span>
                 </div>
                 <div className="info-item">
-                  <label>Estado:</label>
+                  <label>📊 Ticket del Cliente:</label>
+                  <span><strong>#{ticketSeleccionado.contadorTickets || 1}</strong></span>
+                </div>
+                <div className="info-item">
+                  <label>📊 Estado:</label>
                   <span className={`badge-estado ${ticketSeleccionado.estado.toLowerCase()}`}>
                     {ticketSeleccionado.estado}
                   </span>
                 </div>
                 <div className="info-item">
-                  <label>Prioridad:</label>
+                  <label>🔥 Prioridad:</label>
                   <span className={`badge-prioridad ${ticketSeleccionado.prioridad.toLowerCase()}`}>
                     {ticketSeleccionado.prioridad}
                   </span>
                 </div>
                 <div className="info-item">
-                  <label>Asignado a:</label>
+                  <label>👨‍💼 Asignado a:</label>
                   <span>{ticketSeleccionado.asignadoA?.username || 'Sin asignar'}</span>
                 </div>
                 <div className="info-item full-width">
-                  <label>Descripción:</label>
+                  <label>📝 Descripción:</label>
                   <span>{ticketSeleccionado.descripcion}</span>
                 </div>
                 <div className="info-item">
-                  <label>Fecha creación:</label>
+                  <label>📅 Fecha creación:</label>
                   <span>{formatearFecha(ticketSeleccionado.fechaCreacion)}</span>
                 </div>
                 {ticketSeleccionado.fechaCierre && (
                   <div className="info-item">
-                    <label>Fecha cierre:</label>
+                    <label>🔒 Fecha cierre:</label>
                     <span>{formatearFecha(ticketSeleccionado.fechaCierre)}</span>
+                  </div>
+                )}
+                {ticketSeleccionado.tiempoResolucion && (
+                  <div className="info-item">
+                    <label>⏱️ Tiempo Resolución:</label>
+                    <span><strong>
+                      {Math.floor(ticketSeleccionado.tiempoResolucion / 60)}h {ticketSeleccionado.tiempoResolucion % 60}min
+                    </strong></span>
+                  </div>
+                )}
+                {ticketSeleccionado.cerradoPor && (
+                  <div className="info-item">
+                    <label>✅ Cerrado por:</label>
+                    <span>{ticketSeleccionado.cerradoPor.username}</span>
                   </div>
                 )}
               </div>
             </div>
+
+            {/* Archivos Adjuntos */}
+            {ticketSeleccionado.archivosAdjuntos && ticketSeleccionado.archivosAdjuntos.length > 0 && (
+              <div className="detalle-archivos">
+                <h3>📎 Archivos Adjuntos ({ticketSeleccionado.archivosAdjuntos.length})</h3>
+                <div className="archivos-grid">
+                  {ticketSeleccionado.archivosAdjuntos.map((archivo, index) => {
+                    const iconos = {
+                      'image': '📷',
+                      'audio': '🎵',
+                      'video': '🎥',
+                      'document': '📄'
+                    };
+                    const nombres = {
+                      'image': 'Imagen',
+                      'audio': 'Audio',
+                      'video': 'Video',
+                      'document': 'Documento'
+                    };
+                    
+                    return (
+                      <div key={index} className="archivo-card">
+                        {archivo.tipo === 'image' && archivo.mediaUrl ? (
+                          <div className="archivo-preview" onClick={() => verArchivo(archivo)}>
+                            <img 
+                              src={getProxyUrl(archivo.mediaUrl, archivo.mediaId)} 
+                              alt="Preview"
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                                e.target.nextSibling.style.display = 'flex';
+                              }}
+                            />
+                            <div className="archivo-icon-fallback" style={{display: 'none'}}>
+                              {iconos[archivo.tipo] || '📎'}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="archivo-icon-large" onClick={() => verArchivo(archivo)}>
+                            {iconos[archivo.tipo] || '📎'}
+                          </div>
+                        )}
+                        <div className="archivo-info">
+                          <div className="archivo-tipo">{nombres[archivo.tipo] || archivo.tipo}</div>
+                          {archivo.caption && (
+                            <div className="archivo-caption">{archivo.caption}</div>
+                          )}
+                          <div className="archivo-fecha">
+                            {new Date(archivo.fecha).toLocaleDateString('es-ES')}
+                          </div>
+                        </div>
+                        <div className="archivo-acciones">
+                          <button 
+                            onClick={() => verArchivo(archivo)}
+                            className="btn-ver-archivo"
+                            title="Ver archivo"
+                          >
+                            👁️ Ver
+                          </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             <div className="detalle-notas">
               <h3>📝 Notas</h3>
@@ -451,6 +646,165 @@ function Tickets() {
             <div className="modal-footer">
               <button className="btn-primary" onClick={() => setShowModal(false)}>
                 Entendido
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Visualización de Multimedia */}
+      {showMediaModal && selectedMedia && (
+        <div className="modal-overlay" onClick={() => setShowMediaModal(false)}>
+          <div className="modal-content media-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>
+                {selectedMedia.tipo === 'image' && '📷 Imagen'}
+                {selectedMedia.tipo === 'audio' && '🎵 Audio'}
+                {selectedMedia.tipo === 'video' && '🎥 Video'}
+                {selectedMedia.tipo === 'document' && '📄 Documento'}
+              </h2>
+              <button className="modal-close" onClick={() => setShowMediaModal(false)}>✕</button>
+            </div>
+            <div className="modal-body">
+              {selectedMedia.caption && (
+                <div className="media-caption">
+                  <strong>Descripción:</strong> {selectedMedia.caption}
+                </div>
+              )}
+              
+              <div className="media-container">
+                {selectedMedia.tipo === 'image' && (
+                  <img 
+                    src={getProxyUrl(selectedMedia.mediaUrl, selectedMedia.mediaId)}
+                    alt="Imagen adjunta"
+                    className="media-preview-image"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><text x="50%" y="50%" text-anchor="middle" dy=".3em">❌ Error cargando imagen</text></svg>';
+                    }}
+                  />
+                )}
+                
+                {selectedMedia.tipo === 'audio' && (
+                  <audio 
+                    controls 
+                    className="media-preview-audio"
+                    src={getProxyUrl(selectedMedia.mediaUrl, selectedMedia.mediaId)}
+                  >
+                    Tu navegador no soporta la reproducción de audio.
+                  </audio>
+                )}
+                
+                {selectedMedia.tipo === 'video' && (
+                  <video 
+                    controls 
+                    className="media-preview-video"
+                    src={getProxyUrl(selectedMedia.mediaUrl, selectedMedia.mediaId)}
+                  >
+                    Tu navegador no soporta la reproducción de video.
+                  </video>
+                )}
+                
+                {selectedMedia.tipo === 'document' && (
+                  <div className="media-preview-document">
+                    <p>📄 Documento</p>
+                    <a 
+                      href={getProxyUrl(selectedMedia.mediaUrl, selectedMedia.mediaId)}
+                      download
+                      className="btn-descargar"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      ⬇️ Descargar Documento
+                    </a>
+                  </div>
+                )}
+              </div>
+              
+              <div className="media-info">
+                <small>Fecha: {new Date(selectedMedia.fecha).toLocaleString('es-ES')}</small>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <a 
+                href={getProxyUrl(selectedMedia.mediaUrl, selectedMedia.mediaId)}
+                download
+                className="btn-secondary"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                ⬇️ Descargar
+              </a>
+              <button className="btn-primary" onClick={() => setShowMediaModal(false)}>
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Estadísticas de Agentes */}
+      {showStatsModal && agentesStats.agentes && (
+        <div className="modal-overlay" onClick={() => setShowStatsModal(false)}>
+          <div className="modal-content stats-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>📊 Estadísticas de Agentes</h2>
+              <button className="modal-close" onClick={() => setShowStatsModal(false)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <div className="stats-resumen">
+                <div className="resumen-card">
+                  <span className="resumen-label">Total Agentes:</span>
+                  <span className="resumen-valor">{agentesStats.resumen?.totalAgentes || 0}</span>
+                </div>
+                <div className="resumen-card">
+                  <span className="resumen-label">Promedio Global:</span>
+                  <span className="resumen-valor">{agentesStats.resumen?.promedioGlobal ? 
+                    `${Math.floor(agentesStats.resumen.promedioGlobal / 60)}h ${agentesStats.resumen.promedioGlobal % 60}min` 
+                    : 'N/A'}</span>
+                </div>
+              </div>
+
+              <div className="agentes-stats-list">
+                {agentesStats.agentes.map((stat, index) => (
+                  <div key={stat.agente.id} className="agente-stats-card">
+                    <div className="agente-stats-header">
+                      <h3>#{index + 1} {stat.agente.nombre}</h3>
+                      <span className="agente-email">{stat.agente.email}</span>
+                    </div>
+                    <div className="agente-stats-grid">
+                      <div className="stat-item">
+                        <span className="stat-label">📊 Total Asignados</span>
+                        <span className="stat-value">{stat.totalAsignados}</span>
+                      </div>
+                      <div className="stat-item">
+                        <span className="stat-label">⏳ Pendientes</span>
+                        <span className="stat-value">{stat.ticketsPendientes}</span>
+                      </div>
+                      <div className="stat-item">
+                        <span className="stat-label">⚙️ En Proceso</span>
+                        <span className="stat-value">{stat.ticketsEnProceso}</span>
+                      </div>
+                      <div className="stat-item">
+                        <span className="stat-label">✅ Cerrados</span>
+                        <span className="stat-value">{stat.ticketsCerrados}</span>
+                      </div>
+                      <div className="stat-item highlight">
+                        <span className="stat-label">⏱️ Tiempo Promedio</span>
+                        <span className="stat-value">{stat.tiempoPromedioFormateado}</span>
+                      </div>
+                      <div className="stat-item">
+                        <span className="stat-label">📈 Tasa de Cierre</span>
+                        <span className="stat-value">{stat.tasaCierre}%</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn-primary" onClick={() => setShowStatsModal(false)}>
+                Cerrar
               </button>
             </div>
           </div>

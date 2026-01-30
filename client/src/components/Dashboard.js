@@ -9,6 +9,7 @@ const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 function Dashboard() {
   const [vistaActual, setVistaActual] = useState('chat'); // 'chat', 'tickets', 'admin'
   const [userRole, setUserRole] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
   const [conversations, setConversations] = useState([]);
   const [messages, setMessages] = useState([]);
   const [selectedConversation, setSelectedConversation] = useState(null);
@@ -18,6 +19,17 @@ function Dashboard() {
   const messagesEndRef = useRef(null);
 
   const token = localStorage.getItem('token');
+
+  // Función para obtener URL con autenticación para archivos multimedia
+  const getProxyUrl = (mediaUrl, mediaId) => {
+    if (!mediaUrl && !mediaId) return '';
+    const baseUrl = `${API_URL}/tickets/media/download`;
+    const params = new URLSearchParams();
+    if (mediaId) params.append('mediaId', mediaId);
+    if (mediaUrl) params.append('url', encodeURIComponent(mediaUrl));
+    params.append('token', token);
+    return `${baseUrl}?${params.toString()}`;
+  };
 
   useEffect(() => {
     loadUserRole();
@@ -33,6 +45,7 @@ function Dashboard() {
         headers: { Authorization: `Bearer ${token}` }
       });
       setUserRole(response.data.user.role);
+      setCurrentUser(response.data.user);
     } catch (error) {
       console.error('Error cargando rol de usuario:', error);
     }
@@ -53,13 +66,13 @@ function Dashboard() {
     }
   }, [selectedConversation]);
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+  // useEffect(() => {
+  //   scrollToBottom();
+  // }, [messages]);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  // const scrollToBottom = () => {
+  //   messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  // };
 
   const loadConversations = async () => {
     try {
@@ -104,15 +117,19 @@ function Dashboard() {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (response.data.tickets && response.data.tickets.length > 0) {
-        // Obtener el ticket más reciente
-        const ticket = response.data.tickets[0];
+        // Obtener el ticket más reciente no cerrado, o el más reciente si todos están cerrados
+        const ticketAbierto = response.data.tickets.find(t => t.estado !== 'CERRADO');
+        const ticket = ticketAbierto || response.data.tickets[0];
         setTicketInfo(ticket);
+        return ticket;
       } else {
         setTicketInfo(null);
+        return null;
       }
     } catch (error) {
       console.error('Error cargando ticket:', error);
       setTicketInfo(null);
+      return null;
     }
   };
 
@@ -122,28 +139,17 @@ function Dashboard() {
 
     setLoading(true);
     try {
-      // Verificar si el ticket está asignado al usuario actual
-      if (ticketInfo && ticketInfo.asignadoA) {
-        const meResponse = await axios.get(`${API_URL}/auth/me`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        const currentUserId = meResponse.data.user._id;
-        
-        // Comparar IDs correctamente (puede ser objeto o string)
-        const ticketAsignadoId = typeof ticketInfo.asignadoA === 'object' 
-          ? ticketInfo.asignadoA._id 
-          : ticketInfo.asignadoA;
-        
-        if (ticketAsignadoId !== currentUserId) {
-          const agenteNombre = typeof ticketInfo.asignadoA === 'object'
-            ? ticketInfo.asignadoA.username
-            : 'otro agente';
-          alert(`Este ticket está asignado a ${agenteNombre}. No puedes enviar mensajes.`);
-          setLoading(false);
-          return;
-        }
+      // Recargar la información del ticket para verificar estado
+      const ticketActualizado = await loadTicketInfo(selectedConversation.phoneNumber);
+      
+      // Si hay ticket, verificar que no esté cerrado
+      if (ticketActualizado && ticketActualizado.estado === 'CERRADO') {
+        alert('Este ticket está cerrado. No puedes enviar mensajes.');
+        setLoading(false);
+        return;
       }
 
+      // Enviar el mensaje
       await axios.post(
         `${API_URL}/messages/send`,
         {
@@ -297,26 +303,39 @@ function Dashboard() {
                   </p>
                 </div>
               </div>
-              {selectedConversation.estado === 'EN_COLA' && (
-                <button onClick={() => asignarUsuario(selectedConversation.phoneNumber)} className="asignar-btn">
-                  Asignar a mí
+
+              {/* Banner con botón de asignar o información del ticket dentro del header */}
+              {ticketInfo && ticketInfo.asignadoA ? (
+                <div className="ticket-asignado-banner" style={{ 
+                  margin: '0 0 0 auto', 
+                  maxWidth: '350px',
+                  padding: '8px 12px',
+                  fontSize: '13px'
+                }}>
+                  <div className="banner-icon" style={{ fontSize: '16px' }}>🎫</div>
+                  <div className="banner-content" style={{ gap: '4px' }}>
+                    <strong style={{ fontSize: '12px' }}>Tomado por:</strong>
+                    <span className="agente-nombre" style={{ fontSize: '13px' }}>{ticketInfo.asignadoA.username}</span>
+                  </div>
+                  <div className="banner-ticket" style={{ fontSize: '12px' }}>
+                    <strong>{ticketInfo.numeroTicket}</strong>
+                  </div>
+                </div>
+              ) : selectedConversation.estado === 'EN_COLA' && (
+                <button 
+                  onClick={() => asignarUsuario(selectedConversation.phoneNumber)} 
+                  className="asignar-btn"
+                  style={{ 
+                    marginLeft: 'auto',
+                    padding: '12px 24px',
+                    fontSize: '16px',
+                    fontWeight: 'bold'
+                  }}
+                >
+                  🎫 Asignar a mí
                 </button>
               )}
             </div>
-
-            {/* Banner de ticket asignado */}
-            {ticketInfo && ticketInfo.asignadoA && (
-              <div className="ticket-asignado-banner">
-                <div className="banner-icon">🎫</div>
-                <div className="banner-content">
-                  <strong>El ticket de este chat ha sido tomado por:</strong>
-                  <span className="agente-nombre">{ticketInfo.asignadoA.username}</span>
-                </div>
-                <div className="banner-ticket">
-                  Ticket: <strong>{ticketInfo.numeroTicket}</strong>
-                </div>
-              </div>
-            )}
 
             <div className="messages-container">
               {messages.map((msg, index) => {
@@ -333,20 +352,28 @@ function Dashboard() {
                     <div className={`message ${msg.direction}`}>
                       <div className="message-content">
                         {msg.type === 'image' && msg.mediaUrl && (
-                          <img src={msg.mediaUrl} alt="Imagen" className="message-image" />
+                          <img 
+                            src={getProxyUrl(msg.mediaUrl, msg.mediaId)} 
+                            alt="Imagen" 
+                            className="message-image"
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2UwZTBlMCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjQwIj7wn5qrPC90ZXh0Pjwvc3ZnPg==';
+                            }}
+                          />
                         )}
                         {msg.type === 'video' && msg.mediaUrl && (
                           <video controls className="message-video">
-                            <source src={msg.mediaUrl} type="video/mp4" />
+                            <source src={getProxyUrl(msg.mediaUrl, msg.mediaId)} type="video/mp4" />
                           </video>
                         )}
                         {msg.type === 'audio' && msg.mediaUrl && (
                           <audio controls className="message-audio">
-                            <source src={msg.mediaUrl} type="audio/ogg" />
+                            <source src={getProxyUrl(msg.mediaUrl, msg.mediaId)} type="audio/ogg" />
                           </audio>
                         )}
                         {msg.type === 'document' && msg.mediaUrl && (
-                          <a href={msg.mediaUrl} target="_blank" rel="noopener noreferrer" className="message-document">
+                          <a href={getProxyUrl(msg.mediaUrl, msg.mediaId)} target="_blank" rel="noopener noreferrer" className="message-document">
                             📄 {msg.message}
                           </a>
                         )}

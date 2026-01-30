@@ -126,7 +126,7 @@ router.post('/', async (req, res) => {
         await whatsappService.markAsRead(messageId);
 
         // Respuesta automática simple (personaliza según tus necesidades)
-        const autoReply = await processIncomingMessage(messageText, from);
+        const autoReply = await processIncomingMessage(messageText, from, messageType, mediaUrl, mediaId, caption);
         
         if (autoReply) {
           const result = await whatsappService.sendTextMessage(from, autoReply);
@@ -177,7 +177,7 @@ router.post('/', async (req, res) => {
 /**
  * Función para procesar mensajes entrantes según el estado del usuario
  */
-async function processIncomingMessage(message, from) {
+async function processIncomingMessage(message, from, messageType, mediaUrl, mediaId, caption) {
   const lowerMessage = message.toLowerCase().trim();
 
   // Buscar o crear conversación
@@ -190,21 +190,104 @@ async function processIncomingMessage(message, from) {
     estado: { $ne: 'CERRADO' }
   }).sort({ fechaCreacion: -1 });
   
-  console.log(`📞 Mensaje de ${from}: "${message.substring(0, 50)}" | Ticket: ${ticket?.numeroTicket || 'Sin ticket'} | Estado conv: ${conversation?.estado}`);
+  console.log(`📞 Mensaje de ${from}: "${message.substring(0, 50)}" | Tipo: ${messageType} | Ticket: ${ticket?.numeroTicket || 'Sin ticket'} | Estado conv: ${conversation?.estado}`);
+  
+  // Si es multimedia (imagen, audio, video, documento), guardar en notas del ticket
+  if (messageType && ['image', 'audio', 'video', 'document'].includes(messageType)) {
+    if (ticket) {
+      const mediaEmoji = {
+        'image': '📷',
+        'audio': '🎵',
+        'video': '🎥',
+        'document': '📄'
+      }[messageType] || '📎';
+      
+      const notaTexto = caption ? 
+        `${mediaEmoji} Archivo adjunto del cliente: ${messageType}\n${caption}\nURL: ${mediaUrl || 'Procesando...'}` :
+        `${mediaEmoji} Archivo adjunto del cliente: ${messageType}\nURL: ${mediaUrl || 'Procesando...'}`;
+      
+      // Agregar como nota al ticket con la información del archivo
+      ticket.notas.push({
+        texto: notaTexto,
+        fecha: new Date()
+      });
+      
+      // También agregar a archivosAdjuntos si aún no existe
+      const yaExiste = ticket.archivosAdjuntos.some(a => a.mediaId === mediaId);
+      if (!yaExiste && mediaUrl) {
+        ticket.archivosAdjuntos.push({
+          tipo: messageType,
+          mediaId: mediaId,
+          mediaUrl: mediaUrl,
+          caption: caption || '',
+          fecha: new Date()
+        });
+      }
+      
+      await ticket.save();
+      
+      console.log(`${mediaEmoji} Multimedia guardado en ticket ${ticket.numeroTicket}`);
+      
+      return `✅ ${mediaEmoji} ¡Archivo recibido!\n\n📋 Guardado en tu ticket *${ticket.numeroTicket}*\n${caption ? `\n💬 "${caption}"\n` : ''}\nEl agente podrá verlo cuando atienda tu solicitud.`;
+    } else if (conversation && conversation.estado !== 'INICIO') {
+      // Usuario está en proceso de crear ticket, informar que se guardará
+      const mediaEmoji = {
+        'image': '📷',
+        'audio': '🎵',
+        'video': '🎥',
+        'document': '📄'
+      }[messageType] || '📎';
+      
+      return `✅ ${mediaEmoji} ¡Archivo recibido!\n${caption ? `\n💬 "${caption}"\n` : ''}\nSe adjuntará a tu ticket cuando completemos los datos.\n\n📝 Por favor continúa respondiendo las preguntas.`;
+    }
+  }
   
   if (!conversation) {
-    // Primera vez que escribe - crear conversación en ESPERANDO_PLACA
+    // Primera vez que escribe - crear conversación en ESPERANDO_NOMBRE
     conversation = new Conversation({
       phoneNumber: from,
-      estado: 'ESPERANDO_PLACA'
+      estado: 'ESPERANDO_NOMBRE'
     });
     await conversation.save();
     
-    return `¡Hola! 👋 ¡Bienvenido!\n\n📝 Para poder ayudarte, necesito que me proporciones algunos datos.\n\nPor favor, ingresa la *PLACA* de tu vehículo\n(Formato: ABC123):`;
+    return `¡Hola! 👋 *Bienvenido al Sistema de Soporte*\n\n📝 Para poder ayudarte, necesito que me proporciones algunos datos.\n\n*Paso 1 de 3:* Por favor, escribe tu *NOMBRE COMPLETO*\n\n_(Ejemplo: Juan Pérez García)_`;
+  }
+
+  // Si la conversación está en INICIO o EN_COLA/ASIGNADO sin ticket activo, reiniciar flujo
+  if (conversation.estado === 'INICIO' || 
+     (conversation.estado === 'EN_COLA' && !ticket) ||
+     (conversation.estado === 'ASIGNADO' && !ticket)) {
+    // Reiniciar la conversación para nuevo ticket
+    conversation.estado = 'ESPERANDO_NOMBRE';
+    conversation.name = '';
+    conversation.placa = '';
+    conversation.cedula = '';
+    await conversation.save();
+    
+    return `¡Hola! 👋 *Bienvenido al Sistema de Soporte*\n\n📝 Para poder ayudarte, necesito que me proporciones algunos datos.\n\n*Paso 1 de 3:* Por favor, escribe tu *NOMBRE COMPLETO*\n\n_(Ejemplo: Juan Pérez García)_`;
   }
 
   // Manejo de estados
   switch (conversation.estado) {
+    case 'ESPERANDO_NOMBRE':
+      // Validar que el nombre tenga al menos 3 caracteres y contenga letras
+      const nombreLimpio = message.trim();
+      
+      if (nombreLimpio.length < 3) {
+        return '❌ El nombre debe tener al menos 3 caracteres.\n\n*Paso 1 de 3:* Por favor, escribe tu *NOMBRE COMPLETO*:';
+      }
+      
+      // Verificar que contenga al menos letras (no solo números)
+      if (!/[a-zA-ZáéíóúÁÉÍÓÚñÑ]/.test(nombreLimpio)) {
+        return '❌ El nombre debe contener letras.\n\n*Paso 1 de 3:* Por favor, escribe tu *NOMBRE COMPLETO*:';
+      }
+      
+      conversation.name = nombreLimpio;
+      conversation.estado = 'ESPERANDO_PLACA';
+      await conversation.save();
+      
+      return `✅ Gracias, *${nombreLimpio}*\n\n*Paso 2 de 3:* Ahora, ingresa la *PLACA* de tu vehículo\n(Formato: ABC123):`;
+
     case 'ESPERANDO_PLACA':
       // Validar formato colombiano: 3 letras + 3 números (ABC123)
       const placaLimpia = message.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -218,7 +301,7 @@ async function processIncomingMessage(message, from) {
       conversation.estado = 'ESPERANDO_CEDULA';
       await conversation.save();
       
-      return `✅ Placa registrada: *${placaLimpia}*\n\nAhora, ingresa tu *número de CÉDULA*:`;
+      return `✅ Placa registrada: *${placaLimpia}*\n\n*Paso 3 de 3:* Ahora, ingresa tu *número de CÉDULA*:`;
 
     case 'ESPERANDO_CEDULA':
       // Validar y guardar cédula
@@ -233,29 +316,53 @@ async function processIncomingMessage(message, from) {
       conversation.timestampEnCola = new Date();
       
       // Calcular posición en cola
-      const posicion = await Conversation.countDocuments({
+      const posicionCedula = await Conversation.countDocuments({
         estado: { $in: ['EN_COLA', 'ASIGNADO'] },
         timestampEnCola: { $lt: conversation.timestampEnCola }
       }) + 1;
       
-      conversation.posicionEnCola = posicion;
+      conversation.posicionEnCola = posicionCedula;
       await conversation.save();
       
-      // CREAR TICKET AHORA que tenemos placa y cédula
+      // Recopilar archivos multimedia enviados durante el proceso
+      const archivosMultimedia = conversation.messages.filter(msg => 
+        msg.direction === 'inbound' && 
+        ['image', 'audio', 'video', 'document'].includes(msg.type) &&
+        msg.mediaUrl
+      ).map(msg => ({
+        tipo: msg.type,
+        mediaId: msg.mediaId,
+        mediaUrl: msg.mediaUrl,
+        caption: msg.caption || '',
+        fecha: msg.timestamp
+      }));
+      
+      // CREAR TICKET con prioridad MEDIA por defecto (el agente la puede cambiar)
       ticket = new Ticket({
         conversationId: conversation._id,
         phoneNumber: from,
+        nombreCliente: conversation.name,
         placa: conversation.placa,
-        cedula: cedulaLimpia,
-        descripcion: `Solicitud de atención - Placa: ${conversation.placa} - Cédula: ${cedulaLimpia}`,
+        cedula: conversation.cedula,
+        descripcion: `Solicitud de atención - Cliente: ${conversation.name} - Placa: ${conversation.placa}`,
         prioridad: 'MEDIA',
-        estado: 'PENDIENTE'
+        estado: 'PENDIENTE',
+        archivosAdjuntos: archivosMultimedia
       });
       await ticket.save();
       
-      console.log(`🎫 Ticket creado: ${ticket.numeroTicket} para ${from}`);
+      console.log(`🎫 Ticket creado: ${ticket.numeroTicket} para ${conversation.name} (${from}) - Prioridad: MEDIA - Archivos: ${archivosMultimedia.length}`);
       
-      return `✅ Datos registrados correctamente:\n\n🎫 *Ticket: ${ticket.numeroTicket}*\n🚗 Placa: *${conversation.placa}*\n🆔 Cédula: *${cedulaLimpia}*\n\n⏳ Estás en la posición *${posicion}* de la cola.\n\nUn agente te atenderá pronto. Gracias por tu paciencia.`;
+      let mensajeArchivos = '';
+      if (archivosMultimedia.length > 0) {
+        const tiposArchivos = archivosMultimedia.map(a => {
+          const emoji = { 'image': '📷', 'audio': '🎵', 'video': '🎥', 'document': '📄' }[a.tipo];
+          return emoji;
+        }).join(' ');
+        mensajeArchivos = `\n${tiposArchivos} Archivos adjuntos: ${archivosMultimedia.length}`;
+      }
+      
+      return `✅ *Datos registrados correctamente:*\n\n🎫 Ticket: *${ticket.numeroTicket}*\n👤 Nombre: *${conversation.name}*\n🚗 Placa: *${conversation.placa}*\n🆔 Cédula: *${conversation.cedula}*\n⚡ Prioridad: 🟡 MEDIA${mensajeArchivos}\n\n⏳ Estás en la posición *${posicionCedula}* de la cola.\n\nUn agente te atenderá pronto. Gracias por tu paciencia.`;
 
     case 'EN_COLA':
       // Usuario está en cola esperando
