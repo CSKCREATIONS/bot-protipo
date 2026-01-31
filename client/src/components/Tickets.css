@@ -380,6 +380,7 @@
 
 .ticket-detalle {
   flex: 1;
+  max-width: 800px;
   display: flex;
   flex-direction: column;
   background: rgba(255, 255, 255, 0.95);
@@ -387,6 +388,26 @@
   border-radius: 20px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
   overflow: hidden;
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.ticket-detalle::-webkit-scrollbar {
+  width: 10px;
+}
+
+.ticket-detalle::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 10px;
+}
+
+.ticket-detalle::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 10px;
+}
+
+.ticket-detalle::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
 }
 
 .detalle-header {
@@ -396,6 +417,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .detalle-header h2 {
@@ -478,6 +500,7 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   display: flex;
   gap: 20px;
+  flex-shrink: 0;
 }
 
 .control-group {
@@ -530,6 +553,7 @@
   margin: 20px;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  flex-shrink: 0;
 }
 
 .info-grid {
