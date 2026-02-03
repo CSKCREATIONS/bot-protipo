@@ -176,10 +176,30 @@ class WhatsAppService {
         mimeType: mediaInfo.data.mime_type
       };
     } catch (error) {
-      console.error('Error obteniendo URL del medio:', error.response?.data || error.message);
+      const errorData = error.response?.data || {};
+      const errorType = errorData.error?.type;
+      const errorCode = errorData.error?.code;
+      
+      // Detectar errores específicos de token bloqueado/expirado
+      if (errorType === 'OAuthException' || errorCode === 200) {
+        console.error('❌ TOKEN DE WHATSAPP BLOQUEADO/EXPIRADO');
+        console.error('   Mensaje:', errorData.error?.message);
+        console.error('   Trace:', errorData.error?.fbtrace_id);
+        console.error('');
+        console.error('🔧 SOLUCIONES:');
+        console.error('   1. Generar un nuevo token en Meta Business Suite');
+        console.error('   2. Actualizar WHATSAPP_TOKEN en el archivo .env');
+        console.error('   3. Reiniciar el servidor');
+        console.error('   4. Verificar que la app tenga permisos de "whatsapp_business_messaging"');
+        console.error('');
+      } else {
+        console.error('Error obteniendo URL del medio:', errorData || error.message);
+      }
+      
       return {
         success: false,
-        error: error.response?.data || error.message
+        error: errorData || error.message,
+        tokenBlocked: errorType === 'OAuthException' || errorCode === 200
       };
     }
   }

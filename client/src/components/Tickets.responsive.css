@@ -1,0 +1,534 @@
+/* ============================================
+   RESPONSIVE DESIGN - TICKETS COMPONENT
+   ============================================ */
+
+/* Tablets grandes (max-width: 1200px) */
+@media (max-width: 1200px) {
+  .tickets-main {
+    grid-template-columns: 350px 1fr;
+  }
+
+  .stats-panel {
+    padding: 20px;
+    gap: 15px;
+  }
+
+  .stat-card {
+    min-width: 140px;
+    padding: 15px 20px;
+  }
+}
+
+/* Tablets (max-width: 1024px) */
+@media (max-width: 1024px) {
+  .tickets-main {
+    grid-template-columns: 320px 1fr;
+  }
+
+  .stats-panel {
+    flex-wrap: wrap;
+    padding: 15px;
+  }
+
+  .stat-card {
+    min-width: calc(50% - 10px);
+    flex: 1 1 calc(50% - 10px);
+  }
+
+  .archivos-grid {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  }
+
+  .agente-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Tablets pequeñas (max-width: 768px) */
+@media (max-width: 768px) {
+  .tickets-container {
+    height: auto;
+    min-height: 100vh;
+  }
+
+  .tickets-main {
+    grid-template-columns: 1fr;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  .tickets-list {
+    max-height: 50vh;
+    border-right: none;
+    border-bottom: 2px solid #ddd;
+  }
+
+  .ticket-detalle {
+    max-height: none;
+    height: auto;
+  }
+
+  .stats-panel {
+    padding: 15px;
+    gap: 10px;
+  }
+
+  .stat-card {
+    min-width: calc(50% - 5px);
+    padding: 12px 15px;
+  }
+
+  .stat-icon {
+    font-size: 2.5em;
+  }
+
+  .stat-number {
+    font-size: 22px;
+  }
+
+  .stat-label {
+    font-size: 12px;
+  }
+
+  .tickets-header h2 {
+    font-size: 1.3em;
+  }
+
+  .header-buttons {
+    flex-wrap: wrap;
+  }
+
+  .btn-stats,
+  .btn-export,
+  .btn-descargar-conversacion {
+    padding: 8px 14px;
+    font-size: 0.85em;
+  }
+
+  .filtros {
+    flex-wrap: wrap;
+  }
+
+  .filtros select {
+    flex: 1 1 calc(50% - 5px);
+    min-width: 140px;
+  }
+
+  .ticket-item {
+    padding: 12px;
+  }
+
+  .ticket-numero {
+    font-size: 11px;
+  }
+
+  .ticket-nombre {
+    font-size: 13px;
+  }
+
+  .ticket-placa,
+  .ticket-phone {
+    font-size: 11px;
+  }
+
+  .detalle-header h2 {
+    font-size: 1.2em;
+  }
+
+  .detalle-acciones {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .detalle-acciones button {
+    padding: 8px 14px;
+    font-size: 0.85em;
+  }
+
+  .detalle-controles {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .control-group {
+    width: 100%;
+  }
+
+  .info-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .archivos-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 15px;
+  }
+
+  .archivo-preview {
+    height: 120px;
+  }
+
+  .modal-content {
+    width: 95%;
+    max-width: none;
+    margin: 10px;
+  }
+
+  .stats-modal {
+    width: 95%;
+    max-height: 90vh;
+  }
+
+  .agente-stats-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+}
+
+/* Móviles (max-width: 480px) */
+@media (max-width: 480px) {
+  .stats-panel {
+    padding: 12px;
+    gap: 8px;
+  }
+
+  .stat-card {
+    min-width: 100%;
+    flex: 1 1 100%;
+    padding: 12px 15px;
+    flex-direction: row;
+    gap: 12px;
+  }
+
+  .stat-icon {
+    font-size: 2em;
+  }
+
+  .stat-number {
+    font-size: 20px;
+  }
+
+  .stat-label {
+    font-size: 11px;
+  }
+
+  .tickets-header {
+    padding: 12px;
+  }
+
+  .tickets-header h2 {
+    font-size: 1.2em;
+  }
+
+  .header-buttons {
+    width: 100%;
+    margin-bottom: 10px;
+  }
+
+  .btn-stats,
+  .btn-export,
+  .btn-descargar-conversacion {
+    flex: 1;
+    padding: 8px 10px;
+    font-size: 0.8em;
+  }
+
+  .filtros {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .filtros select {
+    width: 100%;
+  }
+
+  .tickets-items {
+    max-height: calc(50vh - 150px);
+  }
+
+  .ticket-item {
+    padding: 10px;
+  }
+
+  .ticket-numero {
+    font-size: 10px;
+    padding: 3px 8px;
+  }
+
+  .ticket-info {
+    min-width: 0;
+  }
+
+  .ticket-nombre {
+    font-size: 12px;
+  }
+
+  .ticket-placa,
+  .ticket-phone {
+    font-size: 10px;
+  }
+
+  .ticket-badges {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .badge-estado,
+  .badge-prioridad,
+  .badge-contador {
+    font-size: 9px;
+    padding: 3px 6px;
+  }
+
+  .ticket-fecha {
+    font-size: 10px;
+  }
+
+  .detalle-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .detalle-header h2 {
+    font-size: 1.1em;
+  }
+
+  .detalle-acciones {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .detalle-acciones button,
+  .detalle-acciones .ticket-cerrado-badge {
+    width: 100%;
+    text-align: center;
+    padding: 10px;
+  }
+
+  .detalle-controles {
+    margin: 12px;
+    padding: 12px;
+  }
+
+  .control-group label {
+    font-size: 13px;
+  }
+
+  .select-estado,
+  .select-prioridad {
+    font-size: 13px;
+    padding: 8px;
+  }
+
+  .detalle-info {
+    padding: 15px;
+    margin: 12px;
+  }
+
+  .info-grid {
+    gap: 10px;
+  }
+
+  .info-item label {
+    font-size: 12px;
+  }
+
+  .info-item span {
+    font-size: 13px;
+  }
+
+  .descripcion-destacada {
+    margin-top: 15px;
+    padding: 15px;
+  }
+
+  .descripcion-destacada h3 {
+    font-size: 1.05em;
+  }
+
+  .descripcion-contenido {
+    padding: 12px;
+    font-size: 0.95em;
+  }
+
+  .detalle-archivos {
+    padding: 15px;
+    margin: 0 12px 12px 12px;
+  }
+
+  .detalle-archivos h3 {
+    font-size: 1.1em;
+  }
+
+  .archivos-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .archivo-card {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .archivo-preview,
+  .archivo-icon-large {
+    width: 80px;
+    height: 80px;
+    flex-shrink: 0;
+  }
+
+  .archivo-info {
+    flex: 1;
+  }
+
+  .archivo-acciones {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .btn-ver-archivo {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  .detalle-notas {
+    padding: 15px;
+    margin: 0 12px 12px 12px;
+  }
+
+  .nota-item {
+    padding: 10px;
+  }
+
+  .nota-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .nota-usuario {
+    font-size: 12px;
+  }
+
+  .nota-fecha {
+    font-size: 11px;
+  }
+
+  .nota-texto {
+    font-size: 13px;
+  }
+
+  .nota-nueva textarea {
+    font-size: 13px;
+  }
+
+  .nota-nueva button {
+    padding: 10px;
+    font-size: 13px;
+  }
+
+  /* Modales en móvil */
+  .modal-overlay {
+    padding: 10px;
+  }
+
+  .modal-content {
+    padding: 15px;
+    max-height: 85vh;
+  }
+
+  .modal-header h3,
+  .modal-header h2 {
+    font-size: 1.1em;
+  }
+
+  .modal-close {
+    font-size: 20px;
+    width: 28px;
+    height: 28px;
+  }
+
+  .modal-body {
+    padding: 12px 0;
+    font-size: 14px;
+  }
+
+  .modal-footer {
+    padding: 12px 0;
+    flex-wrap: wrap;
+  }
+
+  .modal-footer button {
+    flex: 1;
+    min-width: 120px;
+  }
+
+  /* Estadísticas de agentes en móvil */
+  .stats-resumen {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .resumen-card {
+    padding: 10px;
+  }
+
+  .agente-stats-card {
+    padding: 12px;
+  }
+
+  .agente-stats-header h3 {
+    font-size: 16px;
+  }
+
+  .agente-email {
+    font-size: 12px;
+  }
+
+  .stat-item {
+    padding: 10px;
+  }
+
+  .stat-label {
+    font-size: 11px;
+  }
+
+  .stat-value {
+    font-size: 16px;
+  }
+}
+
+/* Móviles pequeños (max-width: 360px) */
+@media (max-width: 360px) {
+  .stat-icon {
+    font-size: 1.8em;
+  }
+
+  .stat-number {
+    font-size: 18px;
+  }
+
+  .tickets-header h2 {
+    font-size: 1.1em;
+  }
+
+  .btn-stats,
+  .btn-export,
+  .btn-descargar-conversacion {
+    font-size: 0.75em;
+    padding: 7px 8px;
+  }
+
+  .ticket-nombre {
+    font-size: 11px;
+  }
+
+  .detalle-header h2 {
+    font-size: 1em;
+  }
+
+  .modal-content {
+    padding: 12px;
+  }
+}

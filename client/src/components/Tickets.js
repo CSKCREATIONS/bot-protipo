@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './Tickets.css';
+import './Tickets.responsive.css';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
@@ -15,6 +16,7 @@ function Tickets() {
   const [showModal, setShowModal] = useState(false);
   const [modalMessage, setModalMessage] = useState('');
   const [lockedByAgent, setLockedByAgent] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
   
   // Estados para modal de multimedia
   const [showMediaModal, setShowMediaModal] = useState(false);
@@ -28,6 +30,7 @@ function Tickets() {
   const token = localStorage.getItem('token');
 
   useEffect(() => {
+    cargarUsuarioActual();
     cargarTickets();
     cargarEstadisticas();
     const interval = setInterval(() => {
@@ -36,6 +39,17 @@ function Tickets() {
     }, 10000); // Actualizar cada 10 segundos
     return () => clearInterval(interval);
   }, [filtroEstado, filtroPrioridad]);
+
+  const cargarUsuarioActual = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setCurrentUser(response.data.user);
+    } catch (error) {
+      console.error('Error cargando usuario actual:', error);
+    }
+  };
 
   const cargarTickets = async () => {
     try {
@@ -206,6 +220,19 @@ function Tickets() {
     return new Date(fecha).toLocaleString('es-ES');
   };
 
+  const puedeEditarTicket = (ticket) => {
+    if (!currentUser) return false;
+    
+    // Admin puede editar todo
+    if (currentUser.role === 'admin') return true;
+    
+    // El agente asignado puede editar
+    if (ticket.asignadoA && ticket.asignadoA._id === currentUser._id) return true;
+    
+    // Nadie más puede editar
+    return false;
+  };
+
   const verEstadisticasAgentes = async () => {
     try {
       const response = await axios.get(`${API_URL}/tickets/stats/agentes`, {
@@ -252,10 +279,43 @@ function Tickets() {
       document.body.removeChild(a);
       window.URL.revokeObjectURL(downloadUrl);
       
-      alert('Archivo CSV descargado correctamente');
+      alert('✅ CSV exportado correctamente');
     } catch (error) {
       console.error('Error exportando CSV:', error);
-      alert('Error al exportar CSV: ' + error.message);
+      alert('Error al exportar CSV');
+    }
+  };
+
+  const descargarConversacion = async (ticketId) => {
+    try {
+      const url = `${API_URL}/tickets/${ticketId}/conversacion/descargar`;
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Error al descargar conversación');
+      }
+      
+      // Crear blob y descargar
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = `conversacion_ticket_${ticketId}_${new Date().getTime()}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(downloadUrl);
+      
+      alert('✅ Conversación descargada correctamente');
+    } catch (error) {
+      console.error('Error descargando conversación:', error);
+      alert('Error al descargar la conversación');
     }
   };
 
@@ -399,6 +459,13 @@ function Tickets() {
             <div className="detalle-header">
               <h2>{ticketSeleccionado.numeroTicket}</h2>
               <div className="detalle-acciones">
+                <button 
+                  onClick={() => descargarConversacion(ticketSeleccionado._id)} 
+                  className="btn-descargar-conversacion"
+                  title="Descargar conversación completa"
+                >
+                  💬 Descargar Conversación
+                </button>
                 {ticketSeleccionado.estado === 'CERRADO' ? (
                   <div className="ticket-cerrado-badge">
                     ✅ Ticket Cerrado
@@ -414,13 +481,15 @@ function Tickets() {
                         ✋ Asignar a mí
                       </button>
                     )}
-                    <button 
-                      onClick={() => cerrarTicket(ticketSeleccionado._id)} 
-                      className="btn-cerrar-ticket" 
-                      disabled={loading}
-                    >
-                      ✅ Cerrar Ticket
-                    </button>
+                    {puedeEditarTicket(ticketSeleccionado) && (
+                      <button 
+                        onClick={() => cerrarTicket(ticketSeleccionado._id)} 
+                        className="btn-cerrar-ticket" 
+                        disabled={loading}
+                      >
+                        ✅ Cerrar Ticket
+                      </button>
+                    )}
                   </>
                 )}
                 {ticketSeleccionado.estado === 'CERRADO' && (
@@ -435,7 +504,7 @@ function Tickets() {
                 <select
                   value={ticketSeleccionado.estado}
                   onChange={(e) => actualizarEstado(ticketSeleccionado._id, e.target.value)}
-                  disabled={loading || ticketSeleccionado.estado === 'CERRADO'}
+                  disabled={loading || ticketSeleccionado.estado === 'CERRADO' || !puedeEditarTicket(ticketSeleccionado)}
                   className="select-estado"
                 >
                   <option value="PENDIENTE">⏳ Pendiente</option>
@@ -449,7 +518,7 @@ function Tickets() {
                 <select
                   value={ticketSeleccionado.prioridad}
                   onChange={(e) => actualizarPrioridad(ticketSeleccionado._id, e.target.value)}
-                  disabled={loading || ticketSeleccionado.estado === 'CERRADO'}
+                  disabled={loading || ticketSeleccionado.estado === 'CERRADO' || !puedeEditarTicket(ticketSeleccionado)}
                   className="select-prioridad"
                 >
                   <option value="BAJA">🟢 Baja</option>
@@ -498,14 +567,16 @@ function Tickets() {
                   <label>👨‍💼 Asignado a:</label>
                   <span>{ticketSeleccionado.asignadoA?.username || 'Sin asignar'}</span>
                 </div>
-                <div className="info-item full-width">
-                  <label>📝 Descripción:</label>
-                  <span>{ticketSeleccionado.descripcion}</span>
-                </div>
                 <div className="info-item">
                   <label>📅 Fecha creación:</label>
                   <span>{formatearFecha(ticketSeleccionado.fechaCreacion)}</span>
                 </div>
+                {ticketSeleccionado.fechaFinalizacion && (
+                  <div className="info-item">
+                    <label>✅ Fecha finalización:</label>
+                    <span>{formatearFecha(ticketSeleccionado.fechaFinalizacion)}</span>
+                  </div>
+                )}
                 {ticketSeleccionado.fechaCierre && (
                   <div className="info-item">
                     <label>🔒 Fecha cierre:</label>
@@ -526,6 +597,14 @@ function Tickets() {
                     <span>{ticketSeleccionado.cerradoPor.username}</span>
                   </div>
                 )}
+              </div>
+
+              {/* Descripción destacada */}
+              <div className="descripcion-destacada">
+                <h3>📝 Descripción del Ticket</h3>
+                <div className="descripcion-contenido">
+                  {ticketSeleccionado.descripcion}
+                </div>
               </div>
             </div>
 
@@ -586,7 +665,7 @@ function Tickets() {
                           >
                             👁️ Ver
                           </button>
-                          )}
+                          
                         </div>
                       </div>
                     );
@@ -608,7 +687,7 @@ function Tickets() {
                   </div>
                 ))}
               </div>
-              {ticketSeleccionado.estado !== 'CERRADO' && (
+              {ticketSeleccionado.estado !== 'CERRADO' && puedeEditarTicket(ticketSeleccionado) && (
                 <div className="nota-nueva">
                   <textarea
                     value={nuevaNota}

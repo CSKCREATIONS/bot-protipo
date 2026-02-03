@@ -42,6 +42,59 @@ router.post('/', async (req, res) => {
       // Verificar si es un mensaje
       if (value.messages && value.messages.length > 0) {
         const message = value.messages[0];
+        
+        // 🚫 PROTECCIÓN CONTRA EDICIÓN DE MENSAJES
+        // Los mensajes editados en WhatsApp pueden tener varios indicadores
+        
+        // 1. Verificar si el mensaje tiene contexto de edición
+        if (message.context && message.context.id) {
+          const referencedMessageId = message.context.id;
+          
+          // Buscar si el mensaje referenciado ya existe en nuestro sistema
+          const referencedMessage = await Conversation.findOne({
+            'messages.whatsappMessageId': referencedMessageId
+          });
+          
+          if (referencedMessage) {
+            console.log(`🚫 Intento de edición detectado. Mensaje original: ${referencedMessageId}`);
+            
+            // Registrar intento de edición en el ticket si existe
+            const ticket = await Ticket.findOne({ 
+              phoneNumber: message.from,
+              estado: { $ne: 'CERRADO' }
+            }).sort({ fechaCreacion: -1 });
+            
+            if (ticket) {
+              ticket.notas.push({
+                texto: `⚠️ INTENTO DE EDICIÓN DETECTADO\nEl cliente intentó editar un mensaje anterior.\nMensaje que intentó enviar: "${message.text?.body?.substring(0, 100) || 'multimedia'}"\n\nPor seguridad, la edición fue rechazada y se mantuvo el mensaje original.`,
+                fecha: new Date()
+              });
+              await ticket.save();
+              console.log(`📋 Intento de edición registrado en ticket ${ticket.numeroTicket}`);
+            }
+            
+            // Enviar notificación al usuario que no se permiten ediciones
+            await whatsappService.sendTextMessage(
+              message.from,
+              '⚠️ *Edición no permitida*\n\nPor políticas de seguridad y trazabilidad, no podemos procesar mensajes editados.\n\nSi necesitas corregir información, envía un nuevo mensaje con los datos correctos.'
+            );
+            
+            // Registrar el intento en logs pero no guardar el mensaje
+            console.log(`📝 Usuario ${message.from} intentó editar mensaje: "${message.text?.body?.substring(0, 50) || 'multimedia'}"`);
+            return; // No procesar el mensaje editado
+          }
+        }
+        
+        // 2. Verificar si este ID de mensaje ya existe (duplicado/editado)
+        const existingMessage = await Conversation.findOne({
+          'messages.whatsappMessageId': message.id
+        });
+        
+        if (existingMessage) {
+          console.log(`🚫 Mensaje duplicado/editado detectado (ID: ${message.id}). Ignorando.`);
+          return; // No procesar mensajes duplicados
+        }
+        
         const from = message.from;
         const messageId = message.id;
         const messageType = message.type;
@@ -91,6 +144,19 @@ router.post('/', async (req, res) => {
           const mediaResult = await whatsappService.getMediaUrl(mediaId);
           if (mediaResult.success) {
             mediaUrl = mediaResult.url;
+          } else if (mediaResult.tokenBlocked) {
+            // Token bloqueado - guardar mensaje pero sin URL
+            console.log('⚠️ No se puede obtener URL del medio (token bloqueado). Guardando sin URL.');
+            mediaUrl = null;
+            
+            // Notificar al usuario que se recibió el archivo pero hay problemas técnicos
+            await whatsappService.sendTextMessage(
+              from,
+              '⚠️ *Archivo recibido con advertencia*\n\nHemos registrado tu archivo, pero hay un problema temporal con nuestro sistema.\n\nEl agente será notificado y podrá ver tu mensaje. Si es urgente, puedes describir el contenido del archivo en un mensaje de texto.'
+            );
+          } else {
+            console.log('⚠️ Error obteniendo URL del medio. Continuando sin URL.');
+            mediaUrl = null;
           }
         }
 

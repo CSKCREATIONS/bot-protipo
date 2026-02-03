@@ -712,4 +712,150 @@ router.get('/media/download', async (req, res) => {
   }
 });
 
+/**
+ * Descargar conversación completa del ticket
+ * Incluye todos los mensajes, notas y archivos adjuntos
+ */
+router.get('/:id/conversacion/descargar', auth, async (req, res) => {
+  try {
+    const ticket = await Ticket.findById(req.params.id)
+      .populate('conversationId')
+      .populate('asignadoA', 'username email')
+      .populate('cerradoPor', 'username')
+      .populate('notas.usuario', 'username');
+
+    if (!ticket) {
+      return res.status(404).json({ error: 'Ticket no encontrado' });
+    }
+
+    // Obtener la conversación completa
+    const conversation = await Conversation.findById(ticket.conversationId);
+    
+    if (!conversation) {
+      return res.status(404).json({ error: 'Conversación no encontrada' });
+    }
+
+    // Formatear la conversación de forma legible
+    let conversacionTexto = '';
+    conversacionTexto += '╔════════════════════════════════════════════════════════════════╗\n';
+    conversacionTexto += '║          CONVERSACIÓN - TICKET ' + ticket.numeroTicket + '              ║\n';
+    conversacionTexto += '╚════════════════════════════════════════════════════════════════╝\n\n';
+    
+    conversacionTexto += '📋 INFORMACIÓN DEL TICKET\n';
+    conversacionTexto += '─────────────────────────────────────────────────────────────────\n';
+    conversacionTexto += `  • Número: ${ticket.numeroTicket}\n`;
+    conversacionTexto += `  • Cliente: ${ticket.nombreCliente || 'Sin nombre'}\n`;
+    conversacionTexto += `  • Teléfono: ${ticket.phoneNumber}\n`;
+    conversacionTexto += `  • Placa: ${ticket.placa || 'N/A'}\n`;
+    conversacionTexto += `  • Cédula: ${ticket.cedula || 'N/A'}\n`;
+    conversacionTexto += `  • Descripción: ${ticket.descripcion}\n`;
+    conversacionTexto += `  • Estado: ${ticket.estado}\n`;
+    conversacionTexto += `  • Prioridad: ${ticket.prioridad}\n`;
+    conversacionTexto += `  • Asignado a: ${ticket.asignadoA?.username || 'Sin asignar'}\n`;
+    conversacionTexto += `  • Fecha creación: ${new Date(ticket.fechaCreacion).toLocaleString('es-ES')}\n`;
+    
+    if (ticket.fechaFinalizacion) {
+      conversacionTexto += `  • Fecha finalización: ${new Date(ticket.fechaFinalizacion).toLocaleString('es-ES')}\n`;
+    }
+    
+    if (ticket.fechaCierre) {
+      conversacionTexto += `  • Fecha cierre: ${new Date(ticket.fechaCierre).toLocaleString('es-ES')}\n`;
+    }
+    
+    if (ticket.tiempoResolucion) {
+      const horas = Math.floor(ticket.tiempoResolucion / 60);
+      const minutos = ticket.tiempoResolucion % 60;
+      conversacionTexto += `  • Tiempo de resolución: ${horas}h ${minutos}min\n`;
+    }
+    
+    if (ticket.cerradoPor) {
+      conversacionTexto += `  • Cerrado por: ${ticket.cerradoPor.username}\n`;
+    }
+    
+    conversacionTexto += '\n\n';
+    
+    // Agregar mensajes
+    conversacionTexto += '💬 HISTORIAL DE MENSAJES\n';
+    conversacionTexto += '═════════════════════════════════════════════════════════════════\n\n';
+    
+    if (conversation.messages && conversation.messages.length > 0) {
+      conversation.messages.forEach((msg, index) => {
+        const fecha = new Date(msg.timestamp).toLocaleString('es-ES');
+        const direccion = msg.direction === 'inbound' ? '👤 Cliente' : '👨‍💼 Agente';
+        const tipo = msg.type === 'text' ? '📝' : msg.type === 'image' ? '📷' : 
+                     msg.type === 'audio' ? '🎵' : msg.type === 'video' ? '🎥' : 
+                     msg.type === 'document' ? '📄' : '📎';
+        
+        conversacionTexto += `[${index + 1}] ${fecha}\n`;
+        conversacionTexto += `${direccion} (${tipo} ${msg.type})\n`;
+        
+        if (msg.type === 'text') {
+          conversacionTexto += `💭 ${msg.message || msg.text || ''}\n`;
+        } else {
+          conversacionTexto += `📎 Archivo multimedia adjunto\n`;
+          if (msg.caption) {
+            conversacionTexto += `   Caption: ${msg.caption}\n`;
+          }
+        }
+        
+        conversacionTexto += '\n';
+      });
+    } else {
+      conversacionTexto += '  (Sin mensajes registrados)\n\n';
+    }
+    
+    // Agregar archivos adjuntos
+    if (ticket.archivosAdjuntos && ticket.archivosAdjuntos.length > 0) {
+      conversacionTexto += '\n📎 ARCHIVOS ADJUNTOS\n';
+      conversacionTexto += '─────────────────────────────────────────────────────────────────\n';
+      
+      ticket.archivosAdjuntos.forEach((archivo, index) => {
+        const iconos = {
+          'image': '📷',
+          'audio': '🎵',
+          'video': '🎥',
+          'document': '📄'
+        };
+        
+        conversacionTexto += `  ${index + 1}. ${iconos[archivo.tipo] || '📎'} ${archivo.tipo.toUpperCase()}\n`;
+        if (archivo.caption) {
+          conversacionTexto += `     Caption: ${archivo.caption}\n`;
+        }
+        conversacionTexto += `     Fecha: ${new Date(archivo.fecha).toLocaleString('es-ES')}\n`;
+        if (archivo.mediaId) {
+          conversacionTexto += `     Media ID: ${archivo.mediaId}\n`;
+        }
+        conversacionTexto += '\n';
+      });
+    }
+    
+    // Agregar notas
+    if (ticket.notas && ticket.notas.length > 0) {
+      conversacionTexto += '\n📝 NOTAS DEL TICKET\n';
+      conversacionTexto += '─────────────────────────────────────────────────────────────────\n';
+      
+      ticket.notas.forEach((nota, index) => {
+        conversacionTexto += `  [${index + 1}] ${new Date(nota.fecha).toLocaleString('es-ES')}\n`;
+        conversacionTexto += `  👤 ${nota.usuario?.username || 'Usuario'}\n`;
+        conversacionTexto += `  📋 ${nota.texto}\n\n`;
+      });
+    }
+    
+    conversacionTexto += '\n';
+    conversacionTexto += '═════════════════════════════════════════════════════════════════\n';
+    conversacionTexto += `  Exportado el: ${new Date().toLocaleString('es-ES')}\n`;
+    conversacionTexto += '═════════════════════════════════════════════════════════════════\n';
+
+    // Enviar como archivo de texto
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename=conversacion_${ticket.numeroTicket}_${Date.now()}.txt`);
+    res.send('\uFEFF' + conversacionTexto); // BOM para mejor compatibilidad
+    
+    console.log(`✅ Conversación del ticket ${ticket.numeroTicket} descargada por usuario ${req.user.username}`);
+  } catch (error) {
+    console.error('❌ Error descargando conversación:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;

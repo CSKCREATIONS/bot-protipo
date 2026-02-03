@@ -1,0 +1,122 @@
+/* ============================================
+   RESPONSIVE DESIGN - LOGIN COMPONENT
+   ============================================ */
+
+/* Tablets (max-width: 768px) */
+@media (max-width: 768px) {
+  .login-container {
+    padding: 15px;
+  }
+
+  .login-box {
+    padding: 30px 25px;
+    max-width: 400px;
+  }
+
+  .login-header h1 {
+    font-size: 28px;
+  }
+
+  .login-header p {
+    font-size: 15px;
+  }
+
+  .form-group label {
+    font-size: 13px;
+  }
+
+  .form-group input {
+    padding: 11px 14px;
+    font-size: 14px;
+  }
+
+  .submit-button {
+    padding: 12px;
+    font-size: 15px;
+  }
+}
+
+/* Móviles (max-width: 480px) */
+@media (max-width: 480px) {
+  .login-container {
+    padding: 10px;
+  }
+
+  .login-box {
+    padding: 25px 20px;
+    max-width: 100%;
+    border-radius: 10px;
+  }
+
+  .login-header {
+    margin-bottom: 25px;
+  }
+
+  .login-header h1 {
+    font-size: 24px;
+    margin-bottom: 8px;
+  }
+
+  .login-header p {
+    font-size: 14px;
+  }
+
+  .form-group {
+    margin-bottom: 18px;
+  }
+
+  .form-group label {
+    font-size: 13px;
+    margin-bottom: 6px;
+  }
+
+  .form-group input {
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+
+  .error-message {
+    padding: 10px;
+    font-size: 13px;
+    margin-bottom: 18px;
+  }
+
+  .submit-button {
+    padding: 12px;
+    font-size: 14px;
+  }
+
+  .toggle-form {
+    margin-top: 20px;
+    font-size: 13px;
+  }
+
+  .toggle-button {
+    font-size: 13px;
+  }
+}
+
+/* Móviles pequeños (max-width: 360px) */
+@media (max-width: 360px) {
+  .login-box {
+    padding: 20px 15px;
+  }
+
+  .login-header h1 {
+    font-size: 22px;
+  }
+
+  .login-header p {
+    font-size: 13px;
+  }
+
+  .form-group input {
+    padding: 9px 10px;
+    font-size: 13px;
+  }
+
+  .submit-button {
+    padding: 11px;
+    font-size: 13px;
+  }
+}

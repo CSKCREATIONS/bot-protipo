@@ -96,6 +96,11 @@ const ticketSchema = new mongoose.Schema({
     type: Date,
     default: null
   },
+  fechaFinalizacion: {
+    type: Date,
+    default: null,
+    comment: 'Fecha en que el ticket fue completado/finalizado'
+  },
   tiempoResolucion: {
     type: Number,
     default: null,
@@ -135,6 +140,7 @@ ticketSchema.pre('save', async function(next) {
     // Calcular tiempo de resolución cuando se cierra el ticket
     if (this.isModified('estado') && this.estado === 'CERRADO' && !this.tiempoResolucion) {
       this.fechaCierre = new Date();
+      this.fechaFinalizacion = new Date();
       const tiempoMs = this.fechaCierre - this.fechaCreacion;
       this.tiempoResolucion = Math.round(tiempoMs / (1000 * 60)); // Convertir a minutos
       console.log(`⏱️ Ticket ${this.numeroTicket} resuelto en ${this.tiempoResolucion} minutos`);

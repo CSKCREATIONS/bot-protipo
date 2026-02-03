@@ -157,7 +157,8 @@
 }
 
 .btn-stats,
-.btn-export {
+.btn-export,
+.btn-descargar-conversacion {
   padding: 10px 18px;
   border: none;
   border-radius: 10px;
@@ -172,10 +173,21 @@
 }
 
 .btn-stats:hover,
-.btn-export:hover {
+.btn-export:hover,
+.btn-descargar-conversacion:hover {
   transform: translateY(-2px);
   background: rgba(255, 255, 255, 0.3);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.btn-descargar-conversacion {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+}
+
+.btn-descargar-conversacion:hover {
+  background: linear-gradient(135deg, #7e92f0 0%, #8b5bb8 100%);
 }
 
 .filtros {
@@ -380,7 +392,7 @@
 
 .ticket-detalle {
   flex: 1;
-  max-width: 800px;
+  max-width: 200px;
   display: flex;
   flex-direction: column;
   background: rgba(255, 255, 255, 0.95);
@@ -581,6 +593,36 @@
 .info-item span {
   font-size: 1em;
   color: #333;
+}
+
+/* Descripción Destacada */
+.descripcion-destacada {
+  margin-top: 25px;
+  padding: 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);
+}
+
+.descripcion-destacada h3 {
+  margin: 0 0 15px 0;
+  color: white;
+  font-size: 1.2em;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.descripcion-contenido {
+  background: rgba(255, 255, 255, 0.95);
+  padding: 15px;
+  border-radius: 8px;
+  color: #333;
+  font-size: 1em;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-wrap: break-word;
 }
 
 .detalle-notas {
@@ -1213,4 +1255,6 @@
 
 .stat-item.highlight .stat-value {
   color: white;
-}
+} 
+ 
+/* Media queries responsive */
