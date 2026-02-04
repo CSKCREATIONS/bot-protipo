@@ -1,13 +1,13 @@
 .tickets-container {
   width: 100vw;
-  height: 100vh;
+  min-height: 100vh;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  overflow: hidden;
+  overflow: auto;
 }
 
 .stats-panel {
@@ -125,7 +125,7 @@
 
 .tickets-main {
   display: flex;
-
+  
 /* Card that wraps the whole stats area */
 .stats-card {
   background: white;
@@ -266,18 +266,36 @@
   color: white;
   font-size: 1.8em;
   font-weight: 700;
-  flex: 1;
 }
 
 .tickets-header-actions {
   display: flex;
   align-items: center;
   gap: 12px;
+  position: relative;
 }
 
 .tickets-header .reportes-menu-list {
-  right: 40px;
-  top: 70px;
+  right: 0;
+  top: 50px;
+}
+
+.tickets-header .reportes-menu-button {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.3s;
+}
+
+.tickets-header .reportes-menu-button:hover {
+  background: rgba(255, 255, 255, 0.3);
 }
 
 .header-buttons {
@@ -396,6 +414,186 @@
   border-color: #25d366;
   box-shadow: 0 4px 20px rgba(37, 211, 102, 0.3);
   transform: translateX(8px);
+}
+
+/* Responsive tweaks */
+@media (max-width: 1024px) {
+  .stats-panel {
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .stat-card {
+    padding: 14px 18px;
+    min-width: 140px;
+  }
+
+  .stats-card {
+    margin: 14px 12px;
+    padding: 14px;
+  }
+
+  .tickets-table-card {
+    margin: 12px;
+  }
+}
+
+@media (max-width: 768px) {
+  .tickets-container {
+    padding: 0;
+  }
+
+  .tickets-main {
+    flex-direction: column;
+    gap: 0;
+    min-height: auto;
+  }
+
+  .stats-panel {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    padding: 12px;
+    gap: 10px;
+    overflow-x: visible;
+  }
+
+  .stats-card {
+    width: calc(100% - 24px);
+    margin: 12px;
+    padding: 16px;
+    box-shadow: 0 4px 20px rgba(20, 20, 40, 0.08);
+  }
+
+  .stats-card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .stats-card-title {
+    font-size: 1.3em;
+  }
+
+  /* Stat cards as small squares in grid */
+  .stat-card {
+    width: 100%;
+    margin-bottom: 0;
+    padding: 16px 12px;
+    min-width: 0;
+    min-height: 100px;
+    flex-direction: column;
+    text-align: center;
+    aspect-ratio: 1;
+    justify-content: center;
+  }
+
+  .stat-card:nth-child(5) {
+    grid-column: 1 / -1;
+    aspect-ratio: auto;
+    min-height: 80px;
+  }
+
+  .stat-icon {
+    font-size: 2em;
+    margin-bottom: 8px;
+  }
+
+  .stat-info {
+    align-items: center;
+  }
+
+  .stat-number {
+    font-size: 1.8em;
+  }
+
+  .stat-label {
+    font-size: 0.75em;
+    margin-top: 4px;
+  }
+
+  .tickets-table-card {
+    margin: 12px;
+    border-radius: 10px;
+    min-height: 300px;
+  }
+
+  .tickets-header {
+    padding: 12px 14px;
+  }
+
+  .tickets-header h2 {
+    font-size: 1.3em;
+  }
+
+  .filtros {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .filtros select {
+    width: 100%;
+  }
+
+  .tickets-items {
+    padding: 10px;
+  }
+
+  .ticket-item {
+    padding: 12px;
+  }
+
+  .tickets-list {
+    min-height: 400px;
+  }
+}
+
+@media (max-width: 480px) {
+  .stats-card {
+    margin: 8px;
+    padding: 12px;
+  }
+
+  .stats-card-title {
+    font-size: 1.1em;
+  }
+
+  .stat-card {
+    padding: 14px 16px;
+    margin-bottom: 10px;
+  }
+
+  .stat-number { font-size: 1.8em; }
+  .stat-label { font-size: 0.82em; }
+  .stat-icon { font-size: 2em; }
+
+  .tickets-container { padding-bottom: 20px; }
+
+  .tickets-header {
+    padding: 10px 12px;
+  }
+
+  .tickets-header h2 {
+    font-size: 1.1em;
+  }
+
+  .tickets-header .header-buttons { 
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+
+  .btn-stats, .btn-export, .btn-descargar-conversacion {
+    padding: 8px 12px;
+    font-size: 0.8em;
+  }
+
+  .accion-link { padding: 6px 8px; font-size: 0.85em; }
+
+  .tabla-tickets-full th, .tabla-tickets-full td { padding: 8px 6px; font-size: 13px; }
+
+  .tickets-table-card {
+    margin: 8px;
+  }
 }
 
 .ticket-numero {

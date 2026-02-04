@@ -16,6 +16,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  z-index: 1400; /* keep header above nav and content */
 }
 
 .admin-header h1 {
@@ -31,6 +32,9 @@
   gap: 15px;
   border-bottom: 1px solid #e0e0e0;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  position: sticky;
+  top: 0;
+  z-index: 1300; /* place nav above most content */
 }
 
 /* Header específico para la sección de Reportes */
@@ -651,7 +655,7 @@
 .seccion-reportes {
   background: white;
   border-radius: 12px;
-  padding: 10px 16px; /* tighten vertical spacing */
+  padding: 25px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
 }
 
@@ -1078,6 +1082,49 @@
   .nav-btn {
     padding: 8px 14px;
     font-size: 13px;
+  }
+
+  .admin-content {
+    padding: 8px;
+  }
+
+  .seccion-estadisticas {
+    padding: 12px;
+  }
+
+  .seccion-estadisticas h2 {
+    font-size: 1.3em;
+    margin-bottom: 12px;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .stat-card {
+    flex-direction: column;
+    padding: 14px;
+    gap: 8px;
+    text-align: center;
+    min-height: 100px;
+  }
+
+  .stat-icon {
+    font-size: 1.8em;
+  }
+
+  .stat-info {
+    align-items: center;
+  }
+
+  .stat-number {
+    font-size: 1.6em;
+  }
+
+  .stat-label {
+    font-size: 0.75em;
   }
 
   .seccion-usuarios {
@@ -1699,5 +1746,22 @@
 @media (max-width: 480px) {
   .agente-stats-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Mobile: ensure nav doesn't overlap header/content when sticky */
+@media (max-width: 768px) {
+  .admin-header {
+    position: relative;
+    z-index: 200; /* keep header above nav */
+  }
+
+  .admin-nav {
+    top: 64px; /* offset nav below header height on small screens */
+    z-index: 150;
+  }
+
+  .admin-content {
+    padding-top: 8px; /* small top padding to separate content from nav */
   }
 }

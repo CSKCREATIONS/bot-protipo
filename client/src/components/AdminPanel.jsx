@@ -854,11 +854,12 @@ function ReportesSection({ token, usuarios, filtrosReporte, setFiltrosReporte, r
   };
 
   return (
-    <div className="seccion-tickets-admin">
-      
+    <div className="seccion-reportes">
+      <div >
         <h2>📋 Generador de Reportes</h2>
         
-      
+      </div>
+
       <div className="filtros-reporte">
         <div className="filtros-grid">
           <div className="filtro-item">
