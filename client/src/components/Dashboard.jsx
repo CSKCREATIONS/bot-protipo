@@ -1,13 +1,25 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import './Dashboard.css';
-import Tickets from './Tickets';
-import AdminPanel from './AdminPanel';
+import Tickets from './Tickets.jsx';
+import AdminPanel from './AdminPanel.jsx';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_URL = process.env.REACT_APP_API_URL || '/api';
 
 function Dashboard() {
-  const [vistaActual, setVistaActual] = useState('chat'); // 'chat', 'tickets', 'admin'
+  const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Determinar vista actual desde la URL
+  const getVistaFromPath = () => {
+    const path = location.pathname;
+    if (path.includes('/tickets')) return 'tickets';
+    if (path.includes('/admin')) return 'admin';
+    return 'chat';
+  };
+  
+  const [vistaActual, setVistaActual] = useState(getVistaFromPath());
   const [userRole, setUserRole] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [conversations, setConversations] = useState([]);
@@ -16,6 +28,7 @@ function Dashboard() {
   const [ticketInfo, setTicketInfo] = useState(null);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [menuAbierto, setMenuAbierto] = useState(false);
   const messagesEndRef = useRef(null);
 
   const token = localStorage.getItem('token');
@@ -200,10 +213,77 @@ function Dashboard() {
     window.location.href = '/login';
   };
 
+  const cambiarVista = (vista) => {
+    setVistaActual(vista);
+    setMenuAbierto(false);
+    // Actualizar URL
+    if (vista === 'chat') navigate('/');
+    else if (vista === 'tickets') navigate('/tickets');
+    else if (vista === 'admin') navigate('/admin');
+  };
+  
+  // Sincronizar vistaActual cuando cambia la URL
+  useEffect(() => {
+    const newVista = getVistaFromPath();
+    if (newVista !== vistaActual) {
+      setVistaActual(newVista);
+    }
+  }, [location.pathname]);
+
   return (
-    <div className="dashboard">
+    <div className={`dashboard ${vistaActual}-view`}>
+      {/* Overlay para cerrar menú */}
+      {menuAbierto && (
+        <div className="menu-overlay" onClick={() => setMenuAbierto(false)}></div>
+      )}
+
+      {/* Menú lateral */}
+      <div className={`menu-lateral ${menuAbierto ? 'abierto' : ''}`}>
+        <div className="menu-header">
+          <h2>💬 WhatsApp Bot</h2>
+          <button className="btn-cerrar-menu" onClick={() => setMenuAbierto(false)}>✖</button>
+        </div>
+        
+        <nav className="menu-opciones">
+          <button 
+            className={`menu-opcion ${vistaActual === 'chat' ? 'active' : ''}`}
+            onClick={() => cambiarVista('chat')}
+          >
+            <span className="menu-icon">💬</span>
+            <span>Conversaciones</span>
+          </button>
+          <button 
+            className={`menu-opcion ${vistaActual === 'tickets' ? 'active' : ''}`}
+            onClick={() => cambiarVista('tickets')}
+          >
+            <span className="menu-icon">🎫</span>
+            <span>Mis Tickets</span>
+          </button>
+          {userRole === 'admin' && (
+            <button 
+              className={`menu-opcion ${vistaActual === 'admin' ? 'active' : ''}`}
+              onClick={() => cambiarVista('admin')}
+            >
+              <span className="menu-icon">👑</span>
+              <span>Administración</span>
+            </button>
+          )}
+        </nav>
+
+        <div className="menu-footer">
+          <button className="btn-logout-menu" onClick={handleLogout}>
+            <span>🚪</span> Cerrar Sesión
+          </button>
+        </div>
+      </div>
+
+      {vistaActual === 'chat' && (
+      <>
       <div className="sidebar">
         <div className="sidebar-header">
+          <button className="btn-menu-hamburguesa-chat" onClick={() => setMenuAbierto(true)}>
+            ☰
+          </button>
           <h2>💬 WhatsApp Bot</h2>
           <button onClick={handleLogout} className="logout-btn">Salir</button>
         </div>
@@ -211,20 +291,20 @@ function Dashboard() {
         <div className="nav-tabs">
           <button 
             className={`nav-tab ${vistaActual === 'chat' ? 'active' : ''}`}
-            onClick={() => setVistaActual('chat')}
+            onClick={() => cambiarVista('chat')}
           >
             💬 Chat
           </button>
           <button 
             className={`nav-tab ${vistaActual === 'tickets' ? 'active' : ''}`}
-            onClick={() => setVistaActual('tickets')}
+            onClick={() => cambiarVista('tickets')}
           >
             🎫 Tickets
           </button>
           {userRole === 'admin' && (
             <button 
               className={`nav-tab ${vistaActual === 'admin' ? 'active' : ''}`}
-              onClick={() => setVistaActual('admin')}
+              onClick={() => cambiarVista('admin')}
             >
               👑 Admin
             </button>
@@ -276,7 +356,6 @@ function Dashboard() {
         )}
       </div>
 
-      {vistaActual === 'chat' ? (
       <div className="chat-area">
         {selectedConversation ? (
           <>
@@ -337,78 +416,78 @@ function Dashboard() {
               )}
             </div>
 
-            <div className="messages-container">
-              {messages.map((msg, index) => {
-                const showDate = index === 0 || 
-                  formatDate(messages[index - 1].timestamp) !== formatDate(msg.timestamp);
-                
-                return (
-                  <React.Fragment key={msg._id}>
-                    {showDate && (
-                      <div className="date-divider">
-                        {formatDate(msg.timestamp)}
-                      </div>
+        <div className="messages-container">
+          {messages.map((msg, index) => {
+            const showDate = index === 0 || 
+              formatDate(messages[index - 1].timestamp) !== formatDate(msg.timestamp);
+            
+            return (
+              <React.Fragment key={msg._id}>
+                {showDate && (
+                  <div className="date-divider">
+                    {formatDate(msg.timestamp)}
+                  </div>
+                )}
+                <div className={`message ${msg.direction}`}>
+                  <div className="message-content">
+                    {msg.type === 'image' && msg.mediaUrl && (
+                      <img 
+                        src={getProxyUrl(msg.mediaUrl, msg.mediaId)} 
+                        alt="Imagen" 
+                        className="message-image"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2UwZTBlMCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjQwIj7wn5qrPC90ZXh0Pjwvc3ZnPg==';
+                        }}
+                      />
                     )}
-                    <div className={`message ${msg.direction}`}>
-                      <div className="message-content">
-                        {msg.type === 'image' && msg.mediaUrl && (
-                          <img 
-                            src={getProxyUrl(msg.mediaUrl, msg.mediaId)} 
-                            alt="Imagen" 
-                            className="message-image"
-                            onError={(e) => {
-                              e.target.onerror = null;
-                              e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2UwZTBlMCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjQwIj7wn5qrPC90ZXh0Pjwvc3ZnPg==';
-                            }}
-                          />
-                        )}
-                        {msg.type === 'video' && msg.mediaUrl && (
-                          <video controls className="message-video">
-                            <source src={getProxyUrl(msg.mediaUrl, msg.mediaId)} type="video/mp4" />
-                          </video>
-                        )}
-                        {msg.type === 'audio' && msg.mediaUrl && (
-                          <audio controls className="message-audio">
-                            <source src={getProxyUrl(msg.mediaUrl, msg.mediaId)} type="audio/ogg" />
-                          </audio>
-                        )}
-                        {msg.type === 'document' && msg.mediaUrl && (
-                          <a href={getProxyUrl(msg.mediaUrl, msg.mediaId)} target="_blank" rel="noopener noreferrer" className="message-document">
-                            📄 {msg.message}
-                          </a>
-                        )}
-                        <div className="message-text">{msg.message}</div>
-                        <span className="message-time">
-                          {formatTime(msg.timestamp)}
-                          {msg.direction === 'outbound' && (
-                            <span className="message-status">
-                              {msg.status === 'sent' && ' ✓'}
-                              {msg.status === 'delivered' && ' ✓✓'}
-                              {msg.status === 'read' && ' ✓✓'}
-                            </span>
-                          )}
+                    {msg.type === 'video' && msg.mediaUrl && (
+                      <video controls className="message-video">
+                        <source src={getProxyUrl(msg.mediaUrl, msg.mediaId)} type="video/mp4" />
+                      </video>
+                    )}
+                    {msg.type === 'audio' && msg.mediaUrl && (
+                      <audio controls className="message-audio">
+                        <source src={getProxyUrl(msg.mediaUrl, msg.mediaId)} type="audio/ogg" />
+                      </audio>
+                    )}
+                    {msg.type === 'document' && msg.mediaUrl && (
+                      <a href={getProxyUrl(msg.mediaUrl, msg.mediaId)} target="_blank" rel="noopener noreferrer" className="message-document">
+                        📄 {msg.message}
+                      </a>
+                    )}
+                    <div className="message-text">{msg.message}</div>
+                    <span className="message-time">
+                      {formatTime(msg.timestamp)}
+                      {msg.direction === 'outbound' && (
+                        <span className="message-status">
+                          {msg.status === 'sent' && ' ✓'}
+                          {msg.status === 'delivered' && ' ✓✓'}
+                          {msg.status === 'read' && ' ✓✓'}
                         </span>
-                      </div>
-                    </div>
-                  </React.Fragment>
-                );
-              })}
-              <div ref={messagesEndRef} />
-            </div>
+                      )}
+                    </span>
+                  </div>
+                </div>
+              </React.Fragment>
+            );
+          })}
+          <div ref={messagesEndRef} />
+        </div>
 
-            <form className="message-input-container" onSubmit={handleSendMessage}>
-              <input
-                type="text"
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                placeholder="Escribe un mensaje..."
-                disabled={loading}
-                className="message-input"
-              />
-              <button type="submit" disabled={loading} className="send-button">
-                {loading ? '⏳' : '📤'}
-              </button>
-            </form>
+        <form className="message-input-container" onSubmit={handleSendMessage}>
+          <input
+            type="text"
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            placeholder="Escribe un mensaje..."
+            disabled={loading}
+            className="message-input"
+          />
+          <button type="submit" disabled={loading} className="send-button">
+            {loading ? '⏳' : '📤'}
+          </button>
+        </form>
           </>
         ) : (
           <div className="no-chat-selected">
@@ -417,11 +496,16 @@ function Dashboard() {
           </div>
         )}
       </div>
-      ) : vistaActual === 'tickets' ? (
-        <Tickets />
-      ) : vistaActual === 'admin' && userRole === 'admin' ? (
-        <AdminPanel />
-      ) : null}
+      </>
+      )}
+      
+      {vistaActual === 'tickets' && (
+        <Tickets onNavigate={cambiarVista} />
+      )}
+      
+      {vistaActual === 'admin' && userRole === 'admin' && (
+        <AdminPanel onNavigate={cambiarVista} />
+      )}
     </div>
   );
 }

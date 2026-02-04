@@ -1,162 +1,149 @@
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const sequelize = require('../config/database');
 
-const ticketSchema = new mongoose.Schema({
+const Ticket = sequelize.define('Ticket', {
+  id: {
+    type: DataTypes.INTEGER,
+    autoIncrement: true,
+    primaryKey: true
+  },
   numeroTicket: {
-    type: String,
-    unique: true
+    type: DataTypes.STRING(50),
+    unique: true,
+    allowNull: false
   },
   conversationId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Conversation',
-    required: true
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    references: {
+      model: 'conversations',
+      key: 'id'
+    }
   },
   phoneNumber: {
-    type: String,
-    required: true
+    type: DataTypes.STRING(50),
+    allowNull: false
   },
   nombreCliente: {
-    type: String,
-    required: true
+    type: DataTypes.STRING(255),
+    allowNull: false
   },
   placa: {
-    type: String,
-    default: ''
+    type: DataTypes.STRING(50),
+    defaultValue: ''
   },
   cedula: {
-    type: String,
-    default: ''
+    type: DataTypes.STRING(50),
+    defaultValue: ''
   },
   descripcion: {
-    type: String,
-    default: 'Solicitud de atención'
+    type: DataTypes.TEXT,
+    defaultValue: 'Solicitud de atención'
   },
   contadorTickets: {
-    type: Number,
-    default: 1,
-    comment: 'Número de ticket del usuario'
+    type: DataTypes.INTEGER,
+    defaultValue: 1
   },
   estado: {
-    type: String,
-    enum: ['PENDIENTE', 'ASIGNADO', 'CERRADO'],
-    default: 'PENDIENTE'
+    type: DataTypes.ENUM('PENDIENTE', 'ASIGNADO', 'CERRADO'),
+    defaultValue: 'PENDIENTE'
   },
   prioridad: {
-    type: String,
-    enum: ['BAJA', 'MEDIA', 'ALTA', 'URGENTE'],
-    default: 'MEDIA'
+    type: DataTypes.ENUM('BAJA', 'MEDIA', 'ALTA', 'URGENTE'),
+    defaultValue: 'MEDIA'
   },
   asignadoA: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    default: null
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'users',
+      key: 'id'
+    }
   },
   lockedBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    default: null
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'users',
+      key: 'id'
+    }
   },
   lockedAt: {
-    type: Date,
-    default: null
+    type: DataTypes.DATE,
+    allowNull: true
   },
-  notas: [{
-    texto: String,
-    usuario: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
-    },
-    fecha: {
-      type: Date,
-      default: Date.now
-    }
-  }],
-  archivosAdjuntos: [{
-    tipo: {
-      type: String,
-      enum: ['image', 'audio', 'video', 'document'],
-      required: true
-    },
-    mediaId: String,
-    mediaUrl: String,
-    caption: String,
-    fecha: {
-      type: Date,
-      default: Date.now
-    }
-  }],
-  fechaCreacion: {
-    type: Date,
-    default: Date.now
-  },
-  fechaActualizacion: {
-    type: Date,
-    default: Date.now
+  fechaAsignacion: {
+    type: DataTypes.DATE,
+    allowNull: true
   },
   fechaCierre: {
-    type: Date,
-    default: null
+    type: DataTypes.DATE,
+    allowNull: true
   },
   fechaFinalizacion: {
-    type: Date,
-    default: null,
-    comment: 'Fecha en que el ticket fue completado/finalizado'
+    type: DataTypes.DATE,
+    allowNull: true
   },
   tiempoResolucion: {
-    type: Number,
-    default: null,
-    comment: 'Tiempo en minutos para resolver el ticket'
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    comment: 'Tiempo en minutos'
   },
   cerradoPor: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    default: null
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'users',
+      key: 'id'
+    }
+  },
+  notas: {
+    type: DataTypes.TEXT,
+    defaultValue: ''
   }
-});
-
-// Generar número de ticket automáticamente y calcular tiempo de resolución
-ticketSchema.pre('save', async function(next) {
-  try {
-    // Generar número de ticket para nuevos tickets
-    if (this.isNew) {
-      if (!this.numeroTicket) {
-        const count = await mongoose.model('Ticket').countDocuments();
+}, {
+  tableName: 'tickets',
+  timestamps: true,
+  indexes: [
+    {
+      fields: ['estado', 'createdAt']
+    },
+    {
+      fields: ['asignadoA', 'estado']
+    },
+    {
+      fields: ['phoneNumber']
+    }
+  ],
+  hooks: {
+    beforeCreate: async (ticket) => {
+      // Generar número de ticket
+      if (!ticket.numeroTicket) {
+        const count = await Ticket.count();
         const fecha = new Date();
         const año = fecha.getFullYear();
         const mes = String(fecha.getMonth() + 1).padStart(2, '0');
-        this.numeroTicket = `TKT-${año}${mes}-${String(count + 1).padStart(5, '0')}`;
-        console.log(`✅ Número de ticket generado: ${this.numeroTicket}`);
+        ticket.numeroTicket = `TKT-${año}${mes}-${String(count + 1).padStart(5, '0')}`;
       }
       
-      // Contar tickets del usuario (incluir el actual que se está creando)
-      if (!this.contadorTickets) {
-        const userTickets = await mongoose.model('Ticket').countDocuments({
-          phoneNumber: this.phoneNumber
+      // Contar tickets del usuario
+      if (!ticket.contadorTickets) {
+        const userTickets = await Ticket.count({
+          where: { phoneNumber: ticket.phoneNumber }
         });
-        this.contadorTickets = userTickets + 1;
-        console.log(`📊 Este es el ticket #${this.contadorTickets} del usuario ${this.phoneNumber}`);
+        ticket.contadorTickets = userTickets + 1;
+      }
+    },
+    beforeUpdate: async (ticket) => {
+      // Calcular tiempo de resolución al cerrar
+      if (ticket.changed('estado') && ticket.estado === 'CERRADO' && !ticket.tiempoResolucion) {
+        ticket.fechaCierre = new Date();
+        ticket.fechaFinalizacion = new Date();
+        const tiempoMs = ticket.fechaCierre - ticket.createdAt;
+        ticket.tiempoResolucion = Math.round(tiempoMs / (1000 * 60));
       }
     }
-    
-    // Calcular tiempo de resolución cuando se cierra el ticket
-    if (this.isModified('estado') && this.estado === 'CERRADO' && !this.tiempoResolucion) {
-      this.fechaCierre = new Date();
-      this.fechaFinalizacion = new Date();
-      const tiempoMs = this.fechaCierre - this.fechaCreacion;
-      this.tiempoResolucion = Math.round(tiempoMs / (1000 * 60)); // Convertir a minutos
-      console.log(`⏱️ Ticket ${this.numeroTicket} resuelto en ${this.tiempoResolucion} minutos`);
-    }
-    
-    this.fechaActualizacion = new Date();
-    next();
-  } catch (error) {
-    console.error('❌ Error generando número de ticket:', error);
-    next(error);
   }
 });
 
-// Índices para búsquedas eficientes
-ticketSchema.index({ estado: 1, fechaCreacion: -1 });
-ticketSchema.index({ asignadoA: 1, estado: 1 });
-ticketSchema.index({ phoneNumber: 1 });
-
-module.exports = mongoose.model('Ticket', ticketSchema);
+module.exports = Ticket;

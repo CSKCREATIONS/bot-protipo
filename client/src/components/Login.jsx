@@ -3,7 +3,7 @@ import axios from 'axios';
 import './Login.css';
 import './Login.responsive.css';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_URL = process.env.REACT_APP_API_URL || '/api';
 
 function Login({ onLogin }) {
   const [isRegister, setIsRegister] = useState(false);

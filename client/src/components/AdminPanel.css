@@ -1,9 +1,10 @@
 .admin-panel {
   width: 100%;
-  height: 100%;
+  min-height: 100vh; /* ensure full viewport height */
   display: flex;
   flex-direction: column;
   background: #f5f7fa;
+  box-sizing: border-box;
 }
 
 .admin-header {
@@ -11,6 +12,10 @@
   color: white;
   padding: 25px 40px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .admin-header h1 {
@@ -26,6 +31,120 @@
   gap: 15px;
   border-bottom: 1px solid #e0e0e0;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* Header específico para la sección de Reportes */
+.reportes-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 10px;
+  margin-bottom: 16px;
+}
+
+.reportes-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.reportes-nav-select {
+  background: white;
+  color: #333;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: none;
+  font-weight: 600;
+}
+
+.reportes-nav-select:focus {
+  outline: 2px solid rgba(255,255,255,0.25);
+}
+
+.reportes-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Menu desplegable estilo icon+lista */
+.reportes-header {
+  position: relative;
+}
+
+.reportes-menu-button {
+  background: rgba(255,255,255,0.12);
+  color: white;
+  border: none;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.reportes-menu-button:hover {
+  background: rgba(255,255,255,0.18);
+}
+
+.reportes-menu-list {
+  position: absolute;
+  right: 20px;
+  top: 56px;
+  background: white;
+  color: #333;
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+  z-index: 1100;
+  list-style: none;
+  padding: 6px 0;
+  min-width: 200px;
+}
+
+/* Admin header menu position override */
+.admin-header .reportes-menu-list {
+  right: 40px;
+  top: 70px;
+}
+
+.admin-header-menu {
+  display: flex;
+  align-items: center;
+}
+
+.reportes-menu-item {
+  padding: 10px 16px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.reportes-menu-item:hover {
+  background: #f5f7fa;
+}
+
+@media (max-width: 480px) {
+  .reportes-menu-list {
+    right: 8px;
+    left: 8px;
+    top: 56px;
+    min-width: auto;
+  }
 }
 
 .nav-btn {
@@ -55,8 +174,12 @@
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 30px 40px;
+  padding: 12px 20px; /* reduced padding to avoid large empty gaps */
   min-height: 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 /* Sección Usuarios */
@@ -528,20 +651,21 @@
 .seccion-reportes {
   background: white;
   border-radius: 12px;
-  padding: 25px;
+  padding: 10px 16px; /* tighten vertical spacing */
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
 }
 
 .seccion-reportes h2 {
   color: #333;
-  margin-bottom: 25px;
+  margin: 8px 0 12px 0; /* smaller title spacing */
+  font-size: 1.25rem;
 }
 
 .filtros-reporte {
   background: #f8f9fa;
   border-radius: 10px;
-  padding: 20px;
-  margin-bottom: 30px;
+  padding: 12px 14px;
+  margin: 12px 0 18px 0; /* tighten spacing above/below filters */
 }
 
 .filtros-reporte h3 {
@@ -712,12 +836,108 @@
 }
 
 .reporte-tabla {
-  margin-top: 30px;
+  margin-top: 8px; /* reduce gap between filtros and tabla */
 }
 
 .reporte-tabla h3 {
   margin-bottom: 15px;
   color: #333;
+}
+
+/* Estilos de tabla para reportes (copiados / adaptados desde Tickets) */
+.reporte-tabla .tabla-container {
+  overflow-x: auto;
+  background: transparent;
+  border-radius: 12px;
+  padding: 6px;
+}
+
+/* Make report table use the same visual language as admin tables */
+.reporte-tabla table {
+  width: 100%;
+  border-collapse: collapse; /* match admin tables */
+}
+
+.reporte-tabla thead th {
+  background: #f8f9fa; /* match admin header */
+  color: #555;
+  font-weight: 700;
+  padding: 15px; /* same as admin tables */
+  text-transform: none;
+  letter-spacing: 0;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.reporte-tabla th:first-child { border-top-left-radius: 8px; }
+.reporte-tabla th:last-child { border-top-right-radius: 8px; }
+
+.reporte-tabla td {
+  padding: 15px; /* match admin tables */
+  background: white;
+  border-bottom: 1px solid #f0f0f0;
+  color: #444;
+  vertical-align: middle;
+}
+
+/* Zebra effect via border-spacing and separate rows */
+.reporte-tabla tbody tr td:first-child {
+  border-left: 1px solid #f0f2f5;
+}
+
+.reporte-tabla tbody tr:hover td {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 18px rgba(33,36,41,0.06);
+}
+
+.reporte-tabla .acciones {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.reporte-tabla .btn-accion {
+  background: linear-gradient(90deg,#667eea,#764ba2);
+  color: white;
+  border: none;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.reporte-tabla .btn-accion:active { transform: translateY(1px); }
+
+/* Responsive: asegurar accesibilidad de acciones en móviles */
+@media (max-width: 768px) {
+  .reporte-tabla .tabla-container {
+    padding: 8px;
+  }
+
+  .reporte-tabla th,
+  .reporte-tabla td {
+    padding: 10px 8px;
+    font-size: 13px;
+  }
+
+  /* Si la tabla es muy ancha, permitir scroll horizontal sin cortar acciones */
+  .reporte-tabla .tabla-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .reporte-tabla .acciones button {
+    min-width: 44px;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Opcional: comportamiento tipo card si se desea más legibilidad */
+  .reporte-tabla table {
+    min-width: 600px; /* fuerza scroll horizontal en lugar de ocultar */
+  }
 }
 
 .badge-estado,
@@ -766,4 +986,718 @@
 
 .admin-content::-webkit-scrollbar-thumb:hover {
   background: #999;
+}
+/* ============================================
+   RESPONSIVE DESIGN - ADMIN PANEL
+   ============================================ */
+
+/* Tablets grandes (max-width: 1200px) */
+@media (max-width: 1200px) {
+  .admin-header {
+    padding: 20px 30px;
+  }
+
+  .admin-nav {
+    padding: 12px 30px;
+  }
+
+  
+
+  .tabla-usuarios th,
+  .tabla-usuarios td {
+    padding: 12px 10px;
+  }
+}
+
+/* Tablets (max-width: 1024px) */
+@media (max-width: 1024px) {
+  .admin-header {
+    padding: 18px 20px;
+  }
+
+  .admin-header h1 {
+    font-size: 1.6em;
+  }
+
+  .admin-nav {
+    padding: 10px 20px;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .nav-btn {
+    padding: 10px 18px;
+    font-size: 14px;
+    white-space: nowrap;
+  }
+
+ 
+  .seccion-usuarios {
+    padding: 20px;
+  }
+
+  .seccion-header {
+    flex-wrap: wrap;
+    gap: 15px;
+  }
+
+  .seccion-header h2 {
+    font-size: 1.5em;
+  }
+
+  .tabla-usuarios {
+    font-size: 14px;
+  }
+
+  .tabla-usuarios th,
+  .tabla-usuarios td {
+    padding: 10px 8px;
+  }
+}
+
+/* Tablets pequeñas y móviles grandes (max-width: 768px) */
+@media (max-width: 768px) {
+  .admin-panel {
+    height: auto;
+    min-height: 100vh;
+  }
+
+  .admin-header {
+    padding: 15px;
+  }
+
+  .admin-header h1 {
+    font-size: 1.4em;
+  }
+
+  .admin-nav {
+    padding: 8px 15px;
+    gap: 8px;
+  }
+
+  .nav-btn {
+    padding: 8px 14px;
+    font-size: 13px;
+  }
+
+  .seccion-usuarios {
+    padding: 15px;
+  }
+
+  .seccion-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .seccion-header h2 {
+    font-size: 1.3em;
+  }
+
+  .btn-nuevo {
+    width: 100%;
+    padding: 12px;
+  }
+
+  /* Tabla responsive - scroll horizontal */
+  .tabla-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .tabla-usuarios {
+    min-width: 700px;
+    font-size: 13px;
+  }
+
+  .tabla-usuarios th,
+  .tabla-usuarios td {
+    padding: 8px 6px;
+  }
+
+  .btn-editar,
+  .btn-eliminar {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  /* Modal responsive */
+  .modal-overlay {
+    padding: 10px;
+  }
+
+  .modal-content {
+    width: 95%;
+    max-width: none;
+    margin: 10px auto;
+    padding: 15px;
+  }
+
+  .modal-header h3 {
+    font-size: 1.2em;
+  }
+
+  .form-group label {
+    font-size: 13px;
+  }
+
+  .form-group input,
+  .form-group select {
+    font-size: 14px;
+    padding: 10px;
+  }
+
+  .modal-footer button {
+    padding: 10px 18px;
+    font-size: 14px;
+  }
+}
+
+/* Móviles (max-width: 480px) */
+@media (max-width: 480px) {
+  .admin-header {
+    padding: 12px;
+  }
+
+  .admin-header h1 {
+    font-size: 1.2em;
+  }
+
+  .admin-nav {
+    padding: 8px 12px;
+    gap: 6px;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .nav-btn {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+
+  .admin-content {
+    padding: 12px;
+    overflow-x: visible;
+  }
+
+  
+
+  .seccion-usuarios,
+  .seccion-estadisticas,
+  .seccion-tickets-admin,
+  .seccion-reportes {
+    overflow-x: visible;
+  }
+
+  .seccion-usuarios {
+    padding: 12px;
+    border-radius: 8px;
+  }
+
+  .seccion-header h2 {
+    font-size: 1.2em;
+  }
+
+  .btn-nuevo {
+    font-size: 14px;
+  }
+
+  /* Convertir tabla a cards en móvil */
+  /* selectors fixed to match HTML class names: .tabla-container and .tabla-usuarios */
+  .tabla-container {
+    overflow-x: visible;
+  }
+
+  .tabla-usuarios {
+    display: block;
+    min-width: 0;
+  }
+
+  .tabla-usuarios thead {
+    display: none;
+  }
+
+  .tabla-usuarios tbody {
+    display: block;
+  }
+
+  .tabla-usuarios tr {
+    display: block;
+    margin-bottom: 15px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 12px;
+    background: white;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  }
+
+  .tabla-usuarios td {
+    display: block;
+    text-align: left;
+    padding: 8px 0;
+    border: none;
+    position: relative;
+    padding-left: 45%;
+  }
+
+  .tabla-usuarios td::before {
+    content: attr(data-label);
+    position: absolute;
+    left: 0;
+    width: 40%;
+    font-weight: 600;
+    color: #666;
+    font-size: 12px;
+  }
+
+  .tabla-usuarios td:last-child {
+    padding-left: 0;
+    padding-top: 12px;
+    border-top: 1px solid #f0f0f0;
+    margin-top: 8px;
+  }
+
+  .tabla-usuarios td:last-child::before {
+    content: none;
+  }
+
+  .acciones {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-start;
+  }
+
+  .btn-editar,
+  .btn-eliminar {
+    flex: 1;
+    padding: 8px;
+    font-size: 12px;
+    min-width: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .badge-rol {
+    display: inline-block;
+    font-size: 11px;
+    padding: 4px 8px;
+  }
+
+  /* Modal en móvil */
+  .modal-content {
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  .modal-header h3 {
+    font-size: 1.1em;
+  }
+
+  .modal-close {
+    width: 28px;
+    height: 28px;
+    font-size: 20px;
+  }
+
+  .form-group {
+    margin-bottom: 15px;
+  }
+
+  .form-group label {
+    font-size: 12px;
+    margin-bottom: 6px;
+  }
+
+  .form-group input,
+  .form-group select {
+    font-size: 14px;
+    padding: 10px;
+  }
+
+  .modal-footer {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .modal-footer button {
+    width: 100%;
+    padding: 12px;
+  }
+}
+
+/* Móviles pequeños (max-width: 360px) */
+@media (max-width: 360px) {
+  .admin-header h1 {
+    font-size: 1.1em;
+  }
+
+  .nav-btn {
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+
+  .seccion-header h2 {
+    font-size: 1.1em;
+  }
+
+  .btn-nuevo {
+    font-size: 13px;
+    padding: 10px;
+  }
+
+  .tabla-usuarios tr {
+    padding: 10px;
+  }
+
+  .tabla-usuarios td {
+    padding: 6px 0;
+    padding-left: 42%;
+    font-size: 12px;
+  }
+
+  .tabla-usuarios td::before {
+    font-size: 11px;
+  }
+
+  .btn-editar,
+  .btn-eliminar {
+    padding: 6px;
+    font-size: 11px;
+    min-width: 50px;
+  }
+
+  .acciones {
+    display: flex;
+    gap: 6px;
+    justify-content: flex-start;
+    width: 100%;
+  }
+}
+
+/* Landscape mode para tablets */
+@media (max-width: 1024px) and (orientation: landscape) {
+  .admin-panel {
+    height: 100vh;
+  }
+
+  .admin-content {
+    max-height: calc(100vh - 140px);
+  }
+}
+
+/* Estadísticas por Usuario */
+.agentes-stats-section {
+  margin-top: 30px;
+  background: white;
+  border-radius: 12px;
+  padding: 25px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.agentes-stats-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #e0e0e0;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.agentes-stats-header h3 {
+  margin: 0;
+  font-size: 1.5em;
+  color: #333;
+}
+
+.stats-controls {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.user-selector {
+  padding: 10px 15px;
+  border: 2px solid #667eea;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  background: white;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.3s ease;
+  min-width: 200px;
+}
+
+.user-selector:hover {
+  border-color: #764ba2;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+}
+
+.user-selector:focus {
+  border-color: #764ba2;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.stats-downloads {
+  display: flex;
+  gap: 10px;
+}
+
+.btn-download {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.btn-download:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.stats-resumen-admin {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+  margin-bottom: 25px;
+}
+
+.resumen-card {
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  padding: 15px 20px;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.resumen-label {
+  font-size: 14px;
+  color: #666;
+  font-weight: 500;
+}
+
+.resumen-valor {
+  font-size: 22px;
+  font-weight: 700;
+  color: #333;
+}
+
+.agentes-stats-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.agente-stats-card {
+  background: #f9fafb;
+  border: 1px solid #e0e0e0;
+  border-radius: 10px;
+  padding: 20px;
+  transition: all 0.3s ease;
+}
+
+.agente-stats-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.agente-stats-header-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #ddd;
+}
+
+.agente-stats-header-card h4 {
+  margin: 0 0 5px 0;
+  font-size: 1.2em;
+  color: #333;
+}
+
+.agente-email {
+  font-size: 13px;
+  color: #666;
+}
+
+.agente-stats-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-small {
+  background: #4CAF50;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.btn-small:hover {
+  background: #45a049;
+  transform: scale(1.05);
+}
+
+.agente-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+/* Detalle de un sólo agente */
+.agente-detailed-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 18px;
+}
+
+.agente-title h3 {
+  margin: 0 0 6px 0;
+  font-size: 1.4em;
+}
+
+.agente-title .agente-email {
+  color: #666;
+  font-size: 13px;
+}
+
+.agente-downloads {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-green {
+  background: #28a745;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.btn-green:hover { filter: brightness(0.95); }
+
+.stat-cards-row {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+}
+
+.stat-card-mini {
+  background: white;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  padding: 12px;
+  text-align: left;
+}
+
+.mini-label { font-size: 13px; color: #666; margin-bottom: 6px; }
+.mini-value { font-size: 20px; font-weight: 700; color: #333; }
+.highlight-mini { background: linear-gradient(135deg,#fff5e6 0%,#ffe6cc 100%); border-color:#ffcc99; }
+
+@media (max-width: 900px) {
+  .stat-cards-row { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 480px) {
+  .stat-cards-row { grid-template-columns: 1fr; }
+  .agente-detailed-header { flex-direction: column; align-items: flex-start; }
+  .agente-downloads { width: 100%; display:flex; gap:8px; }
+}
+
+.stat-item {
+  background: white;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #e8e8e8;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.stat-item.highlight {
+  background: linear-gradient(135deg, #fff5e6 0%, #ffe6cc 100%);
+  border-color: #ffcc99;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: #666;
+  font-weight: 500;
+}
+
+.stat-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: #333;
+}
+
+/* Responsive para estadísticas por usuario */
+@media (max-width: 768px) {
+  .agentes-stats-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+  }
+
+  .stats-controls {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .user-selector {
+    width: 100%;
+  }
+
+  .stats-downloads {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .btn-download {
+    flex: 1;
+  }
+
+  .agente-stats-header-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .agente-stats-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .agente-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .stats-resumen-admin {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .agente-stats-grid {
+    grid-template-columns: 1fr;
+  }
 }

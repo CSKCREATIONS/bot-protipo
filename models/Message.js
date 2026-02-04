@@ -1,49 +1,70 @@
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const sequelize = require('../config/database');
 
-const messageSchema = new mongoose.Schema({
+const Message = sequelize.define('Message', {
+  id: {
+    type: DataTypes.INTEGER,
+    autoIncrement: true,
+    primaryKey: true
+  },
   conversationId: {
-    type: String,
-    required: true,
-    index: true
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    references: {
+      model: 'conversations',
+      key: 'id'
+    }
   },
   from: {
-    type: String,
-    required: true
+    type: DataTypes.STRING(50),
+    allowNull: false
   },
   to: {
-    type: String,
-    required: true
+    type: DataTypes.STRING(50),
+    allowNull: false
   },
   message: {
-    type: String,
-    required: true
+    type: DataTypes.TEXT,
+    allowNull: false
   },
   type: {
-    type: String,
-    enum: ['text', 'image', 'video', 'audio', 'document'],
-    default: 'text'
+    type: DataTypes.ENUM('text', 'image', 'video', 'audio', 'document'),
+    defaultValue: 'text'
   },
   direction: {
-    type: String,
-    enum: ['inbound', 'outbound'],
-    required: true
+    type: DataTypes.ENUM('inbound', 'outbound'),
+    allowNull: false
   },
   status: {
-    type: String,
-    enum: ['sent', 'delivered', 'read', 'failed'],
-    default: 'sent'
+    type: DataTypes.ENUM('sent', 'delivered', 'read', 'failed'),
+    defaultValue: 'sent'
   },
   whatsappMessageId: {
-    type: String,
-    sparse: true
+    type: DataTypes.STRING(255),
+    unique: true,
+    allowNull: true
+  },
+  mediaId: {
+    type: DataTypes.STRING(255)
+  },
+  mediaUrl: {
+    type: DataTypes.TEXT
+  },
+  caption: {
+    type: DataTypes.TEXT
   },
   timestamp: {
-    type: Date,
-    default: Date.now
+    type: DataTypes.DATE,
+    defaultValue: DataTypes.NOW
   }
+}, {
+  tableName: 'messages',
+  timestamps: true,
+  indexes: [
+    {
+      fields: ['conversationId', 'timestamp']
+    }
+  ]
 });
 
-// Índice compuesto para búsquedas eficientes
-messageSchema.index({ conversationId: 1, timestamp: -1 });
-
-module.exports = mongoose.model('Message', messageSchema);
+module.exports = Message;

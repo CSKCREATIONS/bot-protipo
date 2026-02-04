@@ -2,6 +2,187 @@
   display: flex;
   height: 100vh;
   background-color: #f0f2f5;
+  position: relative;
+}
+
+/* Overlay oscuro cuando el menú está abierto */
+.menu-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 998;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Menú lateral */
+.menu-lateral {
+  position: fixed;
+  top: 0;
+  left: -300px;
+  width: 280px;
+  height: 100vh;
+  background: white;
+  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+  transition: left 0.3s ease;
+}
+
+.menu-lateral.abierto {
+  left: 0;
+}
+
+.menu-header {
+  padding: 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.menu-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.btn-cerrar-menu {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  font-size: 20px;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.btn-cerrar-menu:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.menu-opciones {
+  flex: 1;
+  padding: 20px 0;
+  overflow-y: auto;
+}
+
+.menu-opcion {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 15px 25px;
+  width: 100%;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 16px;
+  color: #333;
+  transition: all 0.3s;
+  border-left: 4px solid transparent;
+}
+
+.menu-opcion:hover {
+  background: #f5f7fa;
+  border-left-color: #667eea;
+}
+
+.menu-opcion.active {
+  background: linear-gradient(90deg, rgba(102, 126, 234, 0.1) 0%, transparent 100%);
+  border-left-color: #667eea;
+  color: #667eea;
+  font-weight: 600;
+}
+
+.menu-icon {
+  font-size: 24px;
+  width: 30px;
+  text-align: center;
+}
+
+.menu-footer {
+  padding: 20px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.btn-logout-menu {
+  width: 100%;
+  padding: 12px;
+  background: #f44336;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background 0.3s;
+}
+
+.btn-logout-menu:hover {
+  background: #d32f2f;
+}
+
+/* Header para vista de tickets */
+.tickets-fullscreen {
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #f5f7fa;
+}
+
+.tickets-header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px 25px;
+  background: white;
+  border-bottom: 1px solid #e0e0e0;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.tickets-header-bar h1 {
+  margin: 0;
+  font-size: 24px;
+  color: #333;
+  flex: 1;
+  text-align: center;
+}
+
+.btn-menu-hamburguesa {
+  background: transparent;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #667eea;
+  padding: 8px 12px;
+  border-radius: 8px;
+  transition: all 0.3s;
+}
+
+.btn-menu-hamburguesa:hover {
+  background: rgba(102, 126, 234, 0.1);
+}
+
+.tickets-fullscreen .tickets-container {
+  flex: 1;
+  height: calc(100vh - 70px);
+  overflow: auto;
 }
 
 .sidebar {
@@ -19,11 +200,29 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 15px;
 }
 
 .sidebar-header h2 {
   margin: 0;
   font-size: 20px;
+  flex: 1;
+}
+
+.btn-menu-hamburguesa-chat {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 8px;
+  transition: all 0.3s;
+  display: none;
+}
+
+.btn-menu-hamburguesa-chat:hover {
+  background: rgba(255, 255, 255, 0.3);
 }
 
 .logout-btn {
@@ -643,7 +842,17 @@
    ============================================ */
 
 /* Tablets y pantallas medianas (max-width: 1024px) */
+/* Tablets grandes (max-width: 1024px) */
 @media (max-width: 1024px) {
+  /* Mostrar botón hamburguesa en tablets */
+  .btn-menu-hamburguesa-chat {
+    display: block;
+  }
+
+  .btn-menu-hamburguesa {
+    display: block;
+  }
+
   .sidebar {
     width: 350px;
   }
@@ -655,42 +864,62 @@
   .message-item {
     max-width: 80%;
   }
+
+  .sidebar-header h2 {
+    font-size: 20px;
+  }
+
+  .nav-tabs {
+    gap: 8px;
+  }
+
+  .nav-tab {
+    padding: 12px 10px;
+    font-size: 14px;
+  }
 }
 
 /* Tablets pequeñas (max-width: 768px) */
 @media (max-width: 768px) {
-  .dashboard {
-    flex-direction: column;
-    position: relative;
+  /* Menú lateral más angosto en móvil */
+  .menu-lateral {
+    width: 260px;
+    left: -260px;
   }
 
-  .sidebar {
+  /* Vista de tickets en móvil */
+  .tickets-header-bar {
+    padding: 12px 15px;
+  }
+
+  .tickets-header-bar h1 {
+    font-size: 20px;
+  }
+
+  .tickets-fullscreen .tickets-container {
+    height: calc(100vh - 60px);
+  }
+
+  /* Dashboard chat en móvil */
+  .dashboard.chat-view {
+    flex-direction: column;
+  }
+
+  .dashboard.chat-view .sidebar {
     width: 100%;
     height: 50%;
+    max-height: 50vh;
     border-right: none;
     border-bottom: 1px solid #e0e0e0;
   }
 
-  .chat-area {
+  .dashboard.chat-view .chat-area {
     height: 50%;
+    max-height: 50vh;
   }
 
-  .sidebar-header {
-    padding: 15px;
-  }
-
-  .sidebar-header h2 {
-    font-size: 18px;
-  }
-
-  .logout-btn {
-    padding: 6px 12px;
-    font-size: 14px;
-  }
-
-  .nav-tab {
-    padding: 12px 8px;
-    font-size: 14px;
+  .conversations-list {
+    max-height: calc(50vh - 140px);
   }
 
   .conversation-item {
@@ -727,6 +956,10 @@
     font-size: 12px;
   }
 
+  .messages-container {
+    max-height: calc(50vh - 130px);
+  }
+
   .message-input-container {
     padding: 12px;
     gap: 8px;
@@ -747,15 +980,18 @@
 @media (max-width: 480px) {
   .dashboard {
     flex-direction: column;
+    height: 100vh;
   }
 
   .sidebar {
     width: 100%;
     height: 60vh;
+    max-height: 60vh;
   }
 
   .chat-area {
     height: 40vh;
+    max-height: 40vh;
   }
 
   .sidebar-header {
@@ -767,6 +1003,7 @@
   .sidebar-header h2 {
     font-size: 16px;
     flex: 1;
+    min-width: 150px;
   }
 
   .logout-btn {
@@ -774,9 +1011,19 @@
     font-size: 12px;
   }
 
+  .nav-tabs {
+    padding: 8px 12px;
+    gap: 6px;
+  }
+
   .nav-tab {
     padding: 10px 6px;
     font-size: 13px;
+    flex: 1;
+  }
+
+  .conversations-list {
+    max-height: calc(60vh - 140px);
   }
 
   .conversation-item {
@@ -791,6 +1038,7 @@
 
   .conversation-info {
     min-width: 0;
+    flex: 1;
   }
 
   .conversation-name {
@@ -831,6 +1079,7 @@
 
   .messages-container {
     padding: 10px;
+    max-height: calc(40vh - 110px);
   }
 
   .message-item {
@@ -849,7 +1098,7 @@
   .message-input-container {
     padding: 10px;
     gap: 6px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
   }
 
   .message-input {
@@ -862,6 +1111,7 @@
   .send-button {
     padding: 8px 14px;
     font-size: 13px;
+    white-space: nowrap;
   }
 
   /* Ajustes para botones de estado */
@@ -882,6 +1132,11 @@
     padding: 8px 0;
   }
 
+  .user-detail strong {
+    display: block;
+    margin-bottom: 4px;
+  }
+
   /* Información del ticket */
   .ticket-info-panel {
     padding: 12px;
@@ -893,6 +1148,20 @@
 
   .ticket-details p {
     font-size: 12px;
+    margin: 6px 0;
+  }
+
+  /* Empty state */
+  .empty-chat {
+    padding: 20px;
+  }
+
+  .empty-chat h3 {
+    font-size: 18px;
+  }
+
+  .empty-chat p {
+    font-size: 13px;
   }
 }
 
@@ -933,5 +1202,48 @@
   .send-button {
     padding: 8px 12px;
     font-size: 12px;
+  }
+
+  .ticket-number {
+    font-size: 14px;
+  }
+}
+
+/* Orientación landscape en móviles */
+@media (max-width: 768px) and (orientation: landscape) {
+  .dashboard {
+    flex-direction: row;
+  }
+
+  .sidebar {
+    width: 45%;
+    height: 100vh;
+    max-height: 100vh;
+    border-right: 1px solid #e0e0e0;
+    border-bottom: none;
+  }
+
+  .chat-area {
+    width: 55%;
+    height: 100vh;
+    max-height: 100vh;
+  }
+
+  .conversations-list {
+    max-height: calc(100vh - 140px);
+  }
+
+  .messages-container {
+    max-height: calc(100vh - 130px);
+  }
+}
+
+@media (max-width: 480px) and (orientation: landscape) {
+  .sidebar {
+    width: 40%;
+  }
+
+  .chat-area {
+    width: 60%;
   }
 }

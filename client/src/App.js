@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import Login from './components/Login';
-import Dashboard from './components/Dashboard';
+import { BrowserRouter as Router } from 'react-router-dom';
+import Login from './components/Login.jsx';
+import Dashboard from './components/Dashboard.jsx';
 import './App.css';
 
 function App() {
@@ -29,13 +30,15 @@ function App() {
   }
 
   return (
-    <div className="App">
-      {isAuthenticated ? (
-        <Dashboard />
-      ) : (
-        <Login onLogin={handleLogin} />
-      )}
-    </div>
+    <Router>
+      <div className="App">
+        {isAuthenticated ? (
+          <Dashboard />
+        ) : (
+          <Login onLogin={handleLogin} />
+        )}
+      </div>
+    </Router>
   );
 }
 

@@ -38,3 +38,72 @@ body {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+/* ============================================
+   MEJORAS RESPONSIVE GLOBALES
+   ============================================ */
+
+/* Prevenir overflow horizontal */
+body {
+  overflow-x: hidden;
+}
+
+.App {
+  overflow: hidden;
+}
+
+/* Asegurar que las imágenes sean responsive */
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Mejorar scroll en móviles */
+.scrollable {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Prevenir zoom al hacer focus en inputs en iOS */
+@media screen and (max-width: 768px) {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="tel"],
+  input[type="number"],
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
+/* Touch-friendly buttons */
+@media (hover: none) and (pointer: coarse) {
+  button,
+  .clickable {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* Safe area para dispositivos con notch */
+@supports (padding: max(0px)) {
+  body {
+    padding-left: max(0px, env(safe-area-inset-left));
+    padding-right: max(0px, env(safe-area-inset-right));
+  }
+}
+
+/* Mejoras para reducir layout shift */
+* {
+  scroll-behavior: smooth;
+}
+
+/* Optimizaciones de rendimiento para animaciones */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

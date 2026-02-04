@@ -1,100 +1,73 @@
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const sequelize = require('../config/database');
 
-const conversationSchema = new mongoose.Schema({
+const Conversation = sequelize.define('Conversation', {
+  id: {
+    type: DataTypes.INTEGER,
+    autoIncrement: true,
+    primaryKey: true
+  },
   phoneNumber: {
-    type: String,
-    required: true,
+    type: DataTypes.STRING(50),
+    allowNull: false,
     unique: true
   },
   name: {
-    type: String,
-    default: ''
+    type: DataTypes.STRING(255),
+    defaultValue: ''
   },
   placa: {
-    type: String,
-    default: ''
+    type: DataTypes.STRING(50),
+    defaultValue: ''
   },
   cedula: {
-    type: String,
-    default: ''
+    type: DataTypes.STRING(50),
+    defaultValue: ''
   },
   estado: {
-    type: String,
-    enum: ['INICIO', 'ESPERANDO_NOMBRE', 'ESPERANDO_PLACA', 'ESPERANDO_CEDULA', 'EN_COLA', 'ASIGNADO'],
-    default: 'INICIO'
+    type: DataTypes.ENUM('INICIO', 'ESPERANDO_NOMBRE', 'ESPERANDO_PLACA', 'ESPERANDO_CEDULA', 'EN_COLA', 'ASIGNADO'),
+    defaultValue: 'INICIO'
   },
-  messages: [{
-    from: String,
-    to: String,
-    message: String,
-    type: {
-      type: String,
-      default: 'text'
-    },
-    mediaId: String,
-    mediaUrl: String,
-    caption: String,
-    direction: {
-      type: String,
-      enum: ['inbound', 'outbound'],
-      required: true
-    },
-    whatsappMessageId: String,
-    status: {
-      type: String,
-      enum: ['sent', 'delivered', 'read', 'failed'],
-      default: 'sent'
-    },
-    timestamp: {
-      type: Date,
-      default: Date.now
-    }
-  }],
   lastMessage: {
-    type: String,
-    default: ''
+    type: DataTypes.TEXT,
+    defaultValue: ''
   },
   lastMessageTime: {
-    type: Date,
-    default: Date.now
+    type: DataTypes.DATE,
+    defaultValue: DataTypes.NOW
   },
   unreadCount: {
-    type: Number,
-    default: 0
+    type: DataTypes.INTEGER,
+    defaultValue: 0
   },
   status: {
-    type: String,
-    enum: ['active', 'archived', 'blocked'],
-    default: 'active'
+    type: DataTypes.ENUM('active', 'archived', 'blocked'),
+    defaultValue: 'active'
   },
-  assignedAgent: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    default: null
+  assignedAgentId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'users',
+      key: 'id'
+    }
   },
   posicionEnCola: {
-    type: Number,
-    default: null
+    type: DataTypes.INTEGER,
+    allowNull: true
   },
   timestampEnCola: {
-    type: Date,
-    default: null
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
+    type: DataTypes.DATE,
+    allowNull: true
   }
+}, {
+  tableName: 'conversations',
+  timestamps: true,
+  indexes: [
+    {
+      fields: ['estado', 'timestampEnCola']
+    }
+  ]
 });
 
-// Índice para optimizar búsquedas en cola
-conversationSchema.index({ estado: 1, timestampEnCola: 1 });
-
-// Limitar mensajes a los últimos 100 (mantener historial reciente)
-conversationSchema.pre('save', function(next) {
-  if (this.messages.length > 100) {
-    this.messages = this.messages.slice(-100);
-  }
-  next();
-});
-
-module.exports = mongoose.model('Conversation', conversationSchema);
+module.exports = Conversation;

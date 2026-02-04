@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+const { User } = require('../models');
+const { Op } = require('sequelize');
 const auth = require('../middleware/auth');
 
 /**
@@ -18,7 +19,9 @@ router.post('/register', async (req, res) => {
 
     // Verificar si el usuario ya existe
     const existingUser = await User.findOne({
-      $or: [{ email }, { username }]
+      where: {
+        [Op.or]: [{ email }, { username }]
+      }
     });
 
     if (existingUser) {
@@ -26,18 +29,16 @@ router.post('/register', async (req, res) => {
     }
 
     // Crear nuevo usuario
-    const user = new User({
+    const user = await User.create({
       username,
       email,
       password,
       role: role || 'agent'
     });
 
-    await user.save();
-
     // Generar token
     const token = jwt.sign(
-      { userId: user._id },
+      { userId: user.id },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -45,7 +46,7 @@ router.post('/register', async (req, res) => {
     res.status(201).json({
       token,
       user: {
-        id: user._id,
+        id: user.id,
         username: user.username,
         email: user.email,
         role: user.role
@@ -69,7 +70,7 @@ router.post('/login', async (req, res) => {
     }
 
     // Buscar usuario
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ where: { email } });
 
     if (!user) {
       return res.status(400).json({ error: 'Credenciales inválidas' });
@@ -84,7 +85,7 @@ router.post('/login', async (req, res) => {
 
     // Generar token
     const token = jwt.sign(
-      { userId: user._id },
+      { userId: user.id },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -92,7 +93,7 @@ router.post('/login', async (req, res) => {
     res.json({
       token,
       user: {
-        id: user._id,
+        id: user.id,
         username: user.username,
         email: user.email,
         role: user.role
@@ -110,7 +111,7 @@ router.get('/me', auth, async (req, res) => {
   try {
     res.json({
       user: {
-        id: req.user._id,
+        id: req.user.id,
         username: req.user.username,
         email: req.user.email,
         role: req.user.role
@@ -130,7 +131,9 @@ router.get('/agents', auth, async (req, res) => {
       return res.status(403).json({ error: 'Acceso denegado' });
     }
 
-    const agents = await User.find().select('-password');
+    const agents = await User.findAll({
+      attributes: { exclude: ['password'] }
+    });
     res.json(agents);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -147,7 +150,7 @@ router.patch('/users/:id', auth, async (req, res) => {
     }
 
     const { username, email, password, role } = req.body;
-    const user = await User.findById(req.params.id);
+    const user = await User.findByPk(req.params.id);
 
     if (!user) {
       return res.status(404).json({ error: 'Usuario no encontrado' });
@@ -163,7 +166,7 @@ router.patch('/users/:id', auth, async (req, res) => {
     res.json({
       message: 'Usuario actualizado correctamente',
       user: {
-        id: user._id,
+        id: user.id,
         username: user.username,
         email: user.email,
         role: user.role
@@ -184,15 +187,17 @@ router.delete('/users/:id', auth, async (req, res) => {
     }
 
     // No permitir que el admin se elimine a sí mismo
-    if (req.params.id === req.user._id.toString()) {
+    if (req.params.id === req.user.id.toString()) {
       return res.status(400).json({ error: 'No puedes eliminar tu propia cuenta' });
     }
 
-    const user = await User.findByIdAndDelete(req.params.id);
+    const user = await User.findByPk(req.params.id);
 
     if (!user) {
       return res.status(404).json({ error: 'Usuario no encontrado' });
     }
+
+    await user.destroy();
 
     res.json({ message: 'Usuario eliminado correctamente' });
   } catch (error) {

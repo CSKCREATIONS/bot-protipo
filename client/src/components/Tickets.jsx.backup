@@ -1,0 +1,170 @@
+import React, { useEffect, useState, useRef } from 'react';
+import axios from 'axios';
+import './Tickets.css';
+
+const API_URL = process.env.REACT_APP_API_URL || '/api';
+
+function Tickets({ onNavigate }) {
+  const [tickets, setTickets] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [selectedTicket, setSelectedTicket] = useState(null);
+  const token = localStorage.getItem('token');
+  const menuRef = useRef(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    loadTickets();
+  }, []);
+
+  useEffect(() => {
+    const onDocClick = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, []);
+
+  const loadTickets = async () => {
+    setLoading(true);
+    try {
+      const res = await axios.get(`${API_URL}/tickets?limit=200`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      // API may return { tickets: [...] } or an array
+      const data = res.data;
+      setTickets(Array.isArray(data) ? data : (data.tickets || []));
+    } catch (error) {
+      console.error('Error cargando tickets:', error);
+      setTickets([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const counts = tickets.reduce(
+    (acc, t) => {
+      acc.total += 1;
+      const estado = (t.estado || 'PENDIENTE').toUpperCase();
+      if (estado === 'PENDIENTE') acc.pendientes += 1;
+      if (estado === 'ASIGNADO') acc.asignados += 1;
+      if (estado === 'CERRADO') acc.cerrados += 1;
+      return acc;
+    },
+    { total: 0, pendientes: 0, asignados: 0, cerrados: 0 }
+  );
+
+  return (
+    <div className="tickets-page">
+      <div className="admin-header tickets-header" ref={menuRef}>
+        <h1>🎫 Gestión de Tickets</h1>
+        <div className="admin-header-menu">
+          <button
+            className="reportes-menu-button"
+            aria-haspopup="true"
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen(!menuOpen)}
+            title="Menú"
+          >
+            ☰
+          </button>
+          {menuOpen && (
+            <ul className="reportes-menu-list" role="menu">
+              <li className="reportes-menu-item" role="menuitem" onClick={() => onNavigate && onNavigate('chat')}>💬 Chat</li>
+              <li className="reportes-menu-item" role="menuitem" onClick={() => onNavigate && onNavigate('admin')}>👑 Admin</li>
+            </ul>
+          )}
+        </div>
+      </div>
+
+      <div className="tickets-summary">
+        <div className="stat-card">
+          <div className="stat-label">Total</div>
+          <div className="stat-value">{counts.total}</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Pendientes</div>
+          <div className="stat-value">{counts.pendientes}</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Asignados</div>
+          <div className="stat-value">{counts.asignados}</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Cerrados</div>
+          <div className="stat-value">{counts.cerrados}</div>
+        </div>
+      </div>
+
+      <div className="tickets-list">
+        {loading ? (
+          <div>Cargando tickets...</div>
+        ) : tickets.length === 0 ? (
+          <div>No hay tickets registrados.</div>
+        ) : (
+          <div className="tabla-container">
+            <table className="tabla-tickets">
+              <thead>
+                <tr>
+                  <th>Ticket</th>
+                  <th>Teléfono</th>
+                  <th>Estado</th>
+                  <th>Prioridad</th>
+                  <th>Asignado</th>
+                  <th>Fecha</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tickets.map((ticket) => (
+                  <tr key={ticket._id || ticket.id} onClick={() => setSelectedTicket(ticket)}>
+                    <td><strong>{ticket.numeroTicket || ticket._id}</strong></td>
+                    <td>{ticket.phoneNumber}</td>
+                    <td><span className={`badge-estado ${String(ticket.estado || '').toLowerCase()}`}>{ticket.estado || '-'}</span></td>
+                    <td><span className={`badge-prioridad ${String(ticket.prioridad || '').toLowerCase()}`}>{ticket.prioridad || '-'}</span></td>
+                    <td>{ticket.asignadoA?.username || 'Sin asignar'}</td>
+                    <td>{ticket.fechaCreacion ? new Date(ticket.fechaCreacion).toLocaleDateString('es-ES') : '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {selectedTicket && (
+        <div className="modal-overlay" onClick={() => setSelectedTicket(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Ticket {selectedTicket.numeroTicket || selectedTicket._id}</h2>
+              <button className="btn-cerrar" onClick={() => setSelectedTicket(null)}>✖</button>
+            </div>
+            <div className="modal-body">
+              <p><strong>Teléfono:</strong> {selectedTicket.phoneNumber}</p>
+              <p><strong>Placa:</strong> {selectedTicket.placa || 'N/A'}</p>
+              <p><strong>Estado:</strong> {selectedTicket.estado}</p>
+              <p><strong>Prioridad:</strong> {selectedTicket.prioridad}</p>
+              <p><strong>Asignado a:</strong> {selectedTicket.asignadoA?.username || 'Sin asignar'}</p>
+              <div className="mensaje-conversacion">
+                <h4>Conversación</h4>
+                <div className="conversacion-box">
+                  {/* Conversación mínima: si existe campo messages o conversation */}
+                  {(selectedTicket.messages || selectedTicket.conversation || []).length === 0 ? (
+                    <div className="sin-mensajes">No hay mensajes</div>
+                  ) : (
+                    (selectedTicket.messages || selectedTicket.conversation || []).map((m, i) => (
+                      <div key={i} className="msg-item">
+                        <div className="msg-meta">{m.from || m.autor || 'User'} • {m.timestamp ? new Date(m.timestamp).toLocaleString('es-ES') : ''}</div>
+                        <div className="msg-text">{m.text || m.body || JSON.stringify(m)}</div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default Tickets;
