@@ -73,9 +73,10 @@ router.post('/asignar/:phoneNumber', auth, async (req, res) => {
       .populate('lockedBy', 'username email');
     
     // VERIFICAR SI EL TICKET ESTÁ BLOQUEADO POR OTRO AGENTE
-    if (ticket && ticket.lockedBy && ticket.lockedBy._id.toString() !== req.user._id.toString()) {
+    const lockedById = ticket?.lockedBy?._id?.toString();
+    if (lockedById && lockedById !== req.user._id.toString()) {
       // Verificar si el bloqueo no ha expirado (15 minutos)
-      const tiempoBloqueo = new Date() - new Date(ticket.lockedAt);
+      const tiempoBloqueo = Date.now() - new Date(ticket.lockedAt).getTime();
       const TIEMPO_EXPIRACION = 15 * 60 * 1000; // 15 minutos
       
       if (tiempoBloqueo < TIEMPO_EXPIRACION) {
@@ -225,7 +226,7 @@ async function calcularTiempoPromedioEnCola() {
   if (usuariosAsignados.length === 0) return 0;
 
   const tiempoTotal = usuariosAsignados.reduce((sum, usuario) => {
-    const tiempoEnCola = new Date() - new Date(usuario.timestampEnCola);
+    const tiempoEnCola = Date.now() - new Date(usuario.timestampEnCola).getTime();
     return sum + tiempoEnCola;
   }, 0);
 

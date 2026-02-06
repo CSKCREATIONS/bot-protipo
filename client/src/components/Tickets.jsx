@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import PropTypes from 'prop-types';
 import axios from 'axios';
 import './Tickets.css';
 import './Tickets.responsive.css';
@@ -22,11 +23,10 @@ function Tickets({ onNavigate }) {
   // Estados para modal de multimedia
   const [showMediaModal, setShowMediaModal] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState(null);
-  const [mediaLoading, setMediaLoading] = useState(false);
 
   // Estados para modal de estadísticas
   const [showStatsModal, setShowStatsModal] = useState(false);
-  const [agentesStats, setAgentesStats] = useState([]);
+  const [agentesStats] = useState([]);
 
   const token = localStorage.getItem('token');
 
@@ -98,7 +98,7 @@ function Tickets({ onNavigate }) {
       if (filtroEstado) params.estado = filtroEstado;
       if (filtroPrioridad) params.prioridad = filtroPrioridad;
       // Solicitar al servidor sólo los tickets relacionados con el usuario actual
-      if (currentUser && currentUser._id) {
+      if (currentUser?._id) {
         params.createdBy = currentUser._id;
         params.creatorId = currentUser._id;
         params.userId = currentUser._id;
@@ -201,9 +201,9 @@ function Tickets({ onNavigate }) {
       alert('Ticket asignado correctamente');
     } catch (error) {
       console.error('Error asignando ticket:', error);
-      if (error.response && error.response.status === 423) {
-        setLockedByAgent(error.response.data.lockedBy);
-        setModalMessage(error.response.data.message);
+      if (error.response?.status === 423) {
+        setLockedByAgent(error.response?.data?.lockedBy);
+        setModalMessage(error.response?.data?.message);
         setShowModal(true);
       } else {
         alert('Error al asignar ticket');
@@ -237,7 +237,7 @@ function Tickets({ onNavigate }) {
   };
 
   const cerrarTicket = async (ticketId) => {
-    if (!window.confirm('¿Estás seguro de cerrar este ticket?')) return;
+    if (!globalThis.confirm('¿Estás seguro de cerrar este ticket?')) return;
 
     setLoading(true);
     try {
@@ -271,18 +271,6 @@ function Tickets({ onNavigate }) {
     return false;
   };
 
-  const verEstadisticasAgentes = async () => {
-    try {
-      const response = await axios.get(`${API_URL}/tickets/stats/agentes`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setAgentesStats(response.data);
-      setShowStatsModal(true);
-    } catch (error) {
-      console.error('Error cargando estadísticas de agentes:', error);
-      alert('Error al cargar estadísticas de agentes');
-    }
-  };
 
   // Helpers para exportar estadísticas de agentes
   const formatTime = (seconds) => {
@@ -1038,5 +1026,9 @@ function Tickets({ onNavigate }) {
     </div>
   );
 }
+
+Tickets.propTypes = {
+  onNavigate: PropTypes.func.isRequired,
+};
 
 export default Tickets;
