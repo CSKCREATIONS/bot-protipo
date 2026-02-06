@@ -160,9 +160,23 @@ class WhatsAppService {
    */
   async getMediaUrl(mediaId) {
     try {
+      // Validar y sanitizar mediaId para evitar inyección en la ruta
+      if (!mediaId || typeof mediaId !== 'string') {
+        return { success: false, error: 'mediaId inválido' };
+      }
+
+      // Permitir solo caracteres seguros en el ID (letras, números, guión bajo y guión)
+      const safeIdPattern = /^[A-Za-z0-9_-]+$/;
+      if (!safeIdPattern.test(mediaId)) {
+        return { success: false, error: 'mediaId contiene caracteres no permitidos' };
+      }
+
+      // Codificar antes de construir la URL
+      const safeId = encodeURIComponent(mediaId);
+
       // Primer paso: obtener información del medio
       const mediaInfo = await axios.get(
-        `https://graph.facebook.com/v18.0/${mediaId}`,
+        `https://graph.facebook.com/v18.0/${safeId}`,
         {
           headers: {
             'Authorization': `Bearer ${this.token}`
