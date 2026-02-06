@@ -15,8 +15,19 @@ router.get('/', (req, res) => {
   const challenge = req.query['hub.challenge'];
 
   if (mode === 'subscribe' && token === process.env.WHATSAPP_VERIFY_TOKEN) {
-    console.log('✅ Webhook verificado');
-    res.status(200).send(challenge);
+    // Validar formato del challenge para evitar reflejar datos arbitrarios
+    // Meta puede enviar un challenge alfanumérico; permitimos solo un conjunto seguro de caracteres
+    const safeChallengePattern = /^[A-Za-z0-9_-]{1,256}$/;
+
+    if (typeof challenge === 'string' && safeChallengePattern.test(challenge)) {
+      console.log('✅ Webhook verificado');
+      // Responder con texto plano exactamente con el challenge validado
+      res.type('text/plain').status(200).send(challenge);
+    } else {
+      // No devolver datos controlados por el usuario si el challenge no cumple el formato esperado
+      console.warn('⚠️ Webhook verification request with invalid challenge format');
+      res.sendStatus(400);
+    }
   } else {
     console.log('❌ Error verificando webhook');
     res.sendStatus(403);

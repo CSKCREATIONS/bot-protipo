@@ -46,7 +46,7 @@ const descargarBlob = (content, filename, type = 'text/csv;charset=utf-8;') => {
   a.download = filename;
   document.body.appendChild(a);
   a.click();
-  document.body.removeChild(a);
+  a.remove();
   globalThis.URL.revokeObjectURL(url);
 };
 
@@ -56,11 +56,8 @@ export default function AdminPanel() {
   const [usuarios] = useState([]);
   const [tickets] = useState([]);
   const [mostrarModal, setMostrarModal] = useState(false);
-  const [usuarioSeleccionado, setUsuarioSeleccionado] = useState('todos');
-  const [agentesStats] = useState(null);
   const [estadisticas] = useState(null);
   const [user] = useState({ role: 'admin' });
-  const [statSeleccionado] = useState(null);
   const [usuarioEditando] = useState(null);
   const [formData, setFormData] = useState({ username: '', email: '', password: '', role: 'agent' });
   const [loading] = useState(false);
@@ -73,35 +70,7 @@ export default function AdminPanel() {
   const eliminarUsuario = () => {};
   const handleSubmit = (e) => { e.preventDefault(); setMostrarModal(false); };
 
-  const descargarEstadisticasAgentesCSV = () => {
-    const agentesArray = usuarioSeleccionado === 'todos'
-      ? (agentesStats?.agentes || [])
-      : (agentesStats?.agentes || []).filter(s => String(s.agente.id || s.agente._id) === String(usuarioSeleccionado));
-    const csv = generarCSVdeAgentes(agentesArray);
-    if (!csv) { alert('No hay estadísticas para descargar'); return; }
-    const filename = usuarioSeleccionado === 'todos'
-      ? `estadisticas_agentes_${Date.now()}.csv`
-      : `estadisticas_agente_${usuarioSeleccionado}_${Date.now()}.csv`;
-    descargarBlob(csv, filename);
-  };
-
-  const descargarEstadisticasAgentesJSON = () => {
-    const dataToExport = usuarioSeleccionado === 'todos'
-      ? agentesStats
-      : (agentesStats?.agentes || []).find(s => String(s.agente.id || s.agente._id) === String(usuarioSeleccionado));
-    const json = JSON.stringify(dataToExport || {}, null, 2);
-    const filename = usuarioSeleccionado === 'todos'
-      ? `estadisticas_agentes_${Date.now()}.json`
-      : `estadisticas_agente_${usuarioSeleccionado}_${Date.now()}.json`;
-    descargarBlob(json, filename, 'application/json;charset=utf-8;');
-  };
-
-  const descargarEstadisticaAgenteCSV = (stat) => {
-    const csv = generarCSVdeAgentes([stat]);
-    if (!csv) { alert('No hay datos para este agente'); return; }
-    const nombre = stat?.agente?.nombre || stat?.agente?.username || stat?.agente?.email || 'agente';
-    descargarBlob(csv, `estadisticas_agente_${nombre.replace(/\s+/g,'_')}_${Date.now()}.csv`);
-  };
+  // Removed unused function descargarEstadisticasAgentesJSON
 
   const descargarEstadisticaAgenteJSON = (stat) => {
     const json = JSON.stringify(stat || {}, null, 2);

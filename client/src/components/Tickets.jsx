@@ -309,14 +309,14 @@ function Tickets({ onNavigate }) {
 
   const descargarBlob = (content, filename, type = 'text/csv;charset=utf-8;') => {
     const blob = new Blob([content], { type });
-    const url = window.URL.createObjectURL(blob);
+    const url = globalThis.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = filename;
     document.body.appendChild(a);
     a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
+    a.remove();
+    globalThis.URL.revokeObjectURL(url);
   };
 
   const descargarEstadisticasAgentesCSV = () => {
@@ -365,14 +365,14 @@ function Tickets({ onNavigate }) {
       }
       
       const blob = await response.blob();
-      const downloadUrl = window.URL.createObjectURL(blob);
+      const downloadUrl = globalThis.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = downloadUrl;
       a.download = `tickets_${new Date().getTime()}.csv`;
       document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(downloadUrl);
+      a.remove();
+      globalThis.URL.revokeObjectURL(downloadUrl);
       
       alert('✅ CSV exportado correctamente');
     } catch (error) {
@@ -397,14 +397,14 @@ function Tickets({ onNavigate }) {
       }
       
       const blob = await response.blob();
-      const downloadUrl = window.URL.createObjectURL(blob);
+      const downloadUrl = globalThis.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = downloadUrl;
       a.download = `conversacion_ticket_${ticketId}_${new Date().getTime()}.txt`;
       document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(downloadUrl);
+      a.remove();
+      globalThis.URL.revokeObjectURL(downloadUrl);
       
       alert('✅ Conversación descargada correctamente');
     } catch (error) {
