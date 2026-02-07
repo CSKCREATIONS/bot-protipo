@@ -335,51 +335,15 @@ function Tickets({ onNavigate }) {
     const csv = generarCSVdeAgentes([stat]);
     if (!csv) { alert('No hay datos para este agente'); return; }
     const nombre = stat?.agente?.nombre || stat?.agente?.username || stat?.agente?.email || 'agente';
-    descargarBlob(csv, `estadisticas_agente_${nombre.replace(/\s+/g,'_')}_${Date.now()}.csv`);
+    descargarBlob(csv, `estadisticas_agente_${nombre.replaceAll(/\s+/g,'_')}_${Date.now()}.csv`);
   };
 
   const descargarEstadisticaAgenteJSON = (stat) => {
     const json = JSON.stringify(stat || {}, null, 2);
     const nombre = stat?.agente?.nombre || stat?.agente?.username || stat?.agente?.email || 'agente';
-    descargarBlob(json, `estadisticas_agente_${nombre.replace(/\s+/g,'_')}_${Date.now()}.json`, 'application/json;charset=utf-8;');
+    descargarBlob(json, `estadisticas_agente_${nombre.replaceAll(/\s+/g,'_')}_${Date.now()}.json`, 'application/json;charset=utf-8;');
   };
 
-  const exportarCSV = async () => {
-    try {
-      const params = {};
-      if (filtroEstado) params.estado = filtroEstado;
-      if (filtroPrioridad) params.prioridad = filtroPrioridad;
-      
-      const queryString = new URLSearchParams(params).toString();
-      const url = `${API_URL}/tickets/exportar/csv${queryString ? '?' + queryString : ''}`;
-      
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error('Error al descargar CSV');
-      }
-      
-      const blob = await response.blob();
-      const downloadUrl = globalThis.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = downloadUrl;
-      a.download = `tickets_${new Date().getTime()}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      globalThis.URL.revokeObjectURL(downloadUrl);
-      
-      alert('✅ CSV exportado correctamente');
-    } catch (error) {
-      console.error('Error exportando CSV:', error);
-      alert('Error al exportar CSV');
-    }
-  };
 
   const descargarConversacion = async (ticketId) => {
     try {
@@ -400,7 +364,7 @@ function Tickets({ onNavigate }) {
       const downloadUrl = globalThis.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = downloadUrl;
-      a.download = `conversacion_ticket_${ticketId}_${new Date().getTime()}.txt`;
+      a.download = `conversacion_ticket_${ticketId}_${Date.now()}.txt`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -455,10 +419,10 @@ function Tickets({ onNavigate }) {
             ☰
           </button>
           {ticketsMenuOpen && (
-            <ul className="reportes-menu-list" role="menu">
-              <li className="reportes-menu-item" role="menuitem" onClick={() => onNavigate ? onNavigate('chat') : null}>💬 Chat</li>
-              <li className="reportes-menu-item" role="menuitem" onClick={() => onNavigate ? onNavigate('admin') : null}>👑 Panel Admin</li>
-            </ul>
+            <div className="reportes-menu-list">
+              <button type="button" className="reportes-menu-item" onClick={() => onNavigate ? onNavigate('chat') : null}>💬 Chat</button>
+              <button type="button" className="reportes-menu-item" onClick={() => onNavigate ? onNavigate('admin') : null}>👑 Panel Admin</button>
+            </div>
           )}
         </div>
       </div>
@@ -575,124 +539,163 @@ function Tickets({ onNavigate }) {
 
       {/* Modal de ticket bloqueado */}
       {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>⚠️ Ticket en Uso</h3>
-              <button className="modal-close" onClick={() => setShowModal(false)}>✕</button>
-            </div>
-            <div className="modal-body">
-              <p>{modalMessage}</p>
-              {lockedByAgent && (
-                <div className="agent-info">
-                  <p><strong>Agente:</strong> {lockedByAgent.username}</p>
-                  <p><strong>Email:</strong> {lockedByAgent.email}</p>
-                </div>
-              )}
-            </div>
-            <div className="modal-footer">
-              <button className="btn-primary" onClick={() => setShowModal(false)}>
-                Entendido
-              </button>
+        <dialog
+          className="modal-overlay"
+          open
+          aria-modal="true"
+          tabIndex={-1}
+        >
+          <div
+            className="modal-backdrop"
+            role="button"
+            tabIndex={0}
+            onClick={() => setShowModal(false)}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar' || e.key === 'Escape') { setShowModal(false); } }}
+            onTouchStart={() => setShowModal(false)}
+            aria-label="Cerrar modal"
+          >
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h3>⚠️ Ticket en Uso</h3>
+                <button className="modal-close" onClick={() => setShowModal(false)}>✕</button>
+              </div>
+              <div className="modal-body">
+                <p>{modalMessage}</p>
+                {lockedByAgent && (
+                  <div className="agent-info">
+                    <p><strong>Agente:</strong> {lockedByAgent.username}</p>
+                    <p><strong>Email:</strong> {lockedByAgent.email}</p>
+                  </div>
+                )}
+              </div>
+              <div className="modal-footer">
+                <button className="btn-primary" onClick={() => setShowModal(false)}>
+                  Entendido
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </dialog>
       )}
 
       {/* Modal de Visualización de Multimedia */}
       {showMediaModal && selectedMedia && (
-        <div className="modal-overlay" onClick={() => setShowMediaModal(false)}>
-          <div className="modal-content media-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>
-                {selectedMedia.tipo === 'image' && '📷 Imagen'}
-                {selectedMedia.tipo === 'audio' && '🎵 Audio'}
-                {selectedMedia.tipo === 'video' && '🎥 Video'}
-                {selectedMedia.tipo === 'document' && '📄 Documento'}
-              </h2>
-              <button className="modal-close" onClick={() => setShowMediaModal(false)}>✕</button>
-            </div>
-            <div className="modal-body">
-              {selectedMedia.caption && (
-                <div className="media-caption">
-                  <strong>Descripción:</strong> {selectedMedia.caption}
-                </div>
-              )}
-              
-              <div className="media-container">
-                {selectedMedia.tipo === 'image' && (
-                  <img 
-                    src={getProxyUrl(selectedMedia.mediaUrl, selectedMedia.mediaId)}
-                    alt="Imagen adjunta"
-                    className="media-preview-image"
-                    onError={(e) => {
-                      e.target.onerror = null;
-                      e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><text x="50%" y="50%" text-anchor="middle" dy=".3em">❌ Error cargando imagen</text></svg>';
-                    }}
-                  />
-                )}
-                
-                {selectedMedia.tipo === 'audio' && (
-                  <audio 
-                    controls 
-                    className="media-preview-audio"
-                    src={getProxyUrl(selectedMedia.mediaUrl, selectedMedia.mediaId)}
-                  >
-                    Tu navegador no soporta la reproducción de audio.
-                  </audio>
-                )}
-                
-                {selectedMedia.tipo === 'video' && (
-                  <video 
-                    controls 
-                    className="media-preview-video"
-                    src={getProxyUrl(selectedMedia.mediaUrl, selectedMedia.mediaId)}
-                  >
-                    Tu navegador no soporta la reproducción de video.
-                  </video>
-                )}
-                
-                {selectedMedia.tipo === 'document' && (
-                  <div className="media-preview-document">
-                    <p>📄 Documento</p>
-                    <a 
-                      href={getProxyUrl(selectedMedia.mediaUrl, selectedMedia.mediaId)}
-                      download
-                      className="btn-descargar"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      ⬇️ Descargar Documento
-                    </a>
+        <dialog
+          className="modal-overlay"
+          open
+          aria-modal="true"
+          tabIndex={-1}
+        >
+          <div
+            className="modal-backdrop"
+            role="button"
+            tabIndex={0}
+            onClick={() => setShowMediaModal(false)}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar' || e.key === 'Escape') { setShowMediaModal(false); } }}
+            onTouchStart={() => setShowMediaModal(false)}
+            aria-label="Cerrar modal"
+          >
+            <div className="modal-content media-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h2>
+                  {selectedMedia.tipo === 'image' && '📷 Imagen'}
+                  {selectedMedia.tipo === 'audio' && '🎵 Audio'}
+                  {selectedMedia.tipo === 'video' && '🎥 Video'}
+                  {selectedMedia.tipo === 'document' && '📄 Documento'}
+                </h2>
+                <button className="modal-close" onClick={() => setShowMediaModal(false)}>✕</button>
+              </div>
+              <div className="modal-body">
+                {selectedMedia.caption && (
+                  <div className="media-caption">
+                    <strong>Descripción:</strong> {selectedMedia.caption}
                   </div>
                 )}
+                
+                <div className="media-container">
+                  {selectedMedia.tipo === 'image' && (
+                    <img 
+                      src={getProxyUrl(selectedMedia.mediaUrl, selectedMedia.mediaId)}
+                      alt="Imagen adjunta"
+                      className="media-preview-image"
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><text x="50%" y="50%" text-anchor="middle" dy=".3em">❌ Error cargando imagen</text></svg>';
+                      }}
+                    />
+                  )}
+                  
+                  {selectedMedia.tipo === 'audio' && (
+                    <audio 
+                      controls 
+                      className="media-preview-audio"
+                      src={getProxyUrl(selectedMedia.mediaUrl, selectedMedia.mediaId)}
+                    >
+                      Tu navegador no soporta la reproducción de audio.
+                    </audio>
+                  )}
+                  
+                  {selectedMedia.tipo === 'video' && (
+                    <video 
+                      controls 
+                      className="media-preview-video"
+                      src={getProxyUrl(selectedMedia.mediaUrl, selectedMedia.mediaId)}
+                    >
+                      Tu navegador no soporta la reproducción de video.
+                    </video>
+                  )}
+                  
+                  {selectedMedia.tipo === 'document' && (
+                    <div className="media-preview-document">
+                      <p>📄 Documento</p>
+                      <a 
+                        href={getProxyUrl(selectedMedia.mediaUrl, selectedMedia.mediaId)}
+                        download
+                        className="btn-descargar"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        ⬇️ Descargar Documento
+                      </a>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="media-info">
+                  <small>Fecha: {new Date(selectedMedia.fecha).toLocaleString('es-ES')}</small>
+                </div>
               </div>
-              
-              <div className="media-info">
-                <small>Fecha: {new Date(selectedMedia.fecha).toLocaleString('es-ES')}</small>
+              <div className="modal-footer">
+                <a 
+                  href={getProxyUrl(selectedMedia.mediaUrl, selectedMedia.mediaId)}
+                  download
+                  className="btn-secondary"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  ⬇️ Descargar
+                </a>
+                <button className="btn-primary" onClick={() => setShowMediaModal(false)}>
+                  Cerrar
+                </button>
               </div>
-            </div>
-            <div className="modal-footer">
-              <a 
-                href={getProxyUrl(selectedMedia.mediaUrl, selectedMedia.mediaId)}
-                download
-                className="btn-secondary"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                ⬇️ Descargar
-              </a>
-              <button className="btn-primary" onClick={() => setShowMediaModal(false)}>
-                Cerrar
-              </button>
             </div>
           </div>
-        </div>
+        </dialog>
       )}
 
       {/* Modal de Detalle de Ticket */}
       {showTicketModal && ticketSeleccionado && (
-        <div className="modal-overlay" onClick={() => { setShowTicketModal(false); setTicketSeleccionado(null); }}>
+        <dialog
+          className="modal-overlay"
+          open
+          aria-modal="true"
+          role="dialog"
+          tabIndex={-1}
+          onClick={() => { setShowTicketModal(false); setTicketSeleccionado(null); }}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar' || e.key === 'Escape') { setShowTicketModal(false); setTicketSeleccionado(null); } }}
+          onTouchStart={() => { setShowTicketModal(false); setTicketSeleccionado(null); }}
+        >
           <div className="modal-content ticket-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>🎫 {ticketSeleccionado.numeroTicket}</h2>
@@ -945,83 +948,98 @@ function Tickets({ onNavigate }) {
               </button>
             </div>
           </div>
-        </div>
+        </dialog>
       )}
 
       {/* Modal de Estadísticas de Agentes */}
       {showStatsModal && agentesStats.agentes && (
-        <div className="modal-overlay" onClick={() => setShowStatsModal(false)}>
-          <div className="modal-content stats-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>📊 Estadísticas de Agentes</h2>
-              <div className="stats-downloads">
-                <button className="btn-download" onClick={descargarEstadisticasAgentesCSV} title="Descargar CSV">⬇️ CSV</button>
-                <button className="btn-download" onClick={descargarEstadisticasAgentesJSON} title="Descargar JSON">⬇️ JSON</button>
-              </div>
-              <button className="modal-close" onClick={() => setShowStatsModal(false)}>✕</button>
-            </div>
-            <div className="modal-body">
-              <div className="stats-resumen">
-                <div className="resumen-card">
-                  <span className="resumen-label">Total Agentes:</span>
-                  <span className="resumen-valor">{agentesStats.resumen?.totalAgentes || 0}</span>
+        <dialog
+          className="modal-overlay"
+          open
+          aria-modal="true"
+          tabIndex={-1}
+        >
+          <div
+            className="modal-backdrop"
+            role="button"
+            tabIndex={0}
+            onClick={() => setShowStatsModal(false)}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar' || e.key === 'Escape') { setShowStatsModal(false); } }}
+            onTouchStart={() => setShowStatsModal(false)}
+            aria-label="Cerrar modal"
+          >
+            <div className="modal-content stats-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h2>📊 Estadísticas de Agentes</h2>
+                <div className="stats-downloads">
+                  <button className="btn-download" onClick={descargarEstadisticasAgentesCSV} title="Descargar CSV">⬇️ CSV</button>
+                  <button className="btn-download" onClick={descargarEstadisticasAgentesJSON} title="Descargar JSON">⬇️ JSON</button>
                 </div>
-                <div className="resumen-card">
-                  <span className="resumen-label">Promedio Global:</span>
-                  <span className="resumen-valor">{agentesStats.resumen?.promedioGlobal ? 
-                    `${Math.floor(agentesStats.resumen.promedioGlobal / 60)}h ${agentesStats.resumen.promedioGlobal % 60}min` 
-                    : 'N/A'}</span>
-                </div>
+                <button className="modal-close" onClick={() => setShowStatsModal(false)}>✕</button>
               </div>
-
-              <div className="agentes-stats-list">
-                {agentesStats.agentes.map((stat, index) => (
-                  <div key={stat.agente.id} className="agente-stats-card">
-                    <div className="agente-stats-header">
-                      <h3>#{index + 1} {stat.agente.nombre}</h3>
-                      <span className="agente-email">{stat.agente.email}</span>
-                    </div>
-                    <div className="agente-stats-grid">
-                      <div className="stat-item">
-                        <span className="stat-label">📊 Total Asignados</span>
-                        <span className="stat-value">{stat.totalAsignados}</span>
-                      </div>
-                      <div className="stat-item">
-                        <span className="stat-label">⏳ Pendientes</span>
-                        <span className="stat-value">{stat.ticketsPendientes}</span>
-                      </div>
-                      <div className="stat-item">
-                        <span className="stat-label">⚙️ En Proceso</span>
-                        <span className="stat-value">{stat.ticketsEnProceso}</span>
-                      </div>
-                      <div className="stat-item">
-                        <span className="stat-label">✅ Cerrados</span>
-                        <span className="stat-value">{stat.ticketsCerrados}</span>
-                      </div>
-                      <div className="stat-item highlight">
-                        <span className="stat-label">⏱️ Tiempo Promedio</span>
-                        <span className="stat-value">{stat.tiempoPromedioFormateado}</span>
-                      </div>
-                      <div className="stat-item">
-                        <span className="stat-label">📈 Tasa de Cierre</span>
-                        <span className="stat-value">{stat.tasaCierre}%</span>
-                      </div>
-                    </div>
-                    <div className="agente-stats-actions">
-                      <button className="btn-small" onClick={() => descargarEstadisticaAgenteCSV(stat)}>⬇️ CSV</button>
-                      <button className="btn-small" onClick={() => descargarEstadisticaAgenteJSON(stat)}>⬇️ JSON</button>
-                    </div>
+              <div className="modal-body">
+                <div className="stats-resumen">
+                  <div className="resumen-card">
+                    <span className="resumen-label">Total Agentes:</span>
+                    <span className="resumen-valor">{agentesStats.resumen?.totalAgentes || 0}</span>
                   </div>
-                ))}
+                  <div className="resumen-card">
+                    <span className="resumen-label">Promedio Global:</span>
+                    <span className="resumen-valor">{agentesStats.resumen?.promedioGlobal ? 
+                      `${Math.floor(agentesStats.resumen.promedioGlobal / 60)}h ${agentesStats.resumen.promedioGlobal % 60}min` 
+                      : 'N/A'}</span>
+                  </div>
+                </div>
+
+                <div className="agentes-stats-list">
+                  {agentesStats.agentes.map((stat, index) => (
+                    <div key={stat.agente.id} className="agente-stats-card">
+                      <div className="agente-stats-header">
+                        <h3>#{index + 1} {stat.agente.nombre}</h3>
+                        <span className="agente-email">{stat.agente.email}</span>
+                      </div>
+                      <div className="agente-stats-grid">
+                        <div className="stat-item">
+                          <span className="stat-label">📊 Total Asignados</span>
+                          <span className="stat-value">{stat.totalAsignados}</span>
+                        </div>
+                        <div className="stat-item">
+                          <span className="stat-label">⏳ Pendientes</span>
+                          <span className="stat-value">{stat.ticketsPendientes}</span>
+                        </div>
+                        <div className="stat-item">
+                          <span className="stat-label">⚙️ En Proceso</span>
+                          <span className="stat-value">{stat.ticketsEnProceso}</span>
+                        </div>
+                        <div className="stat-item">
+                          <span className="stat-label">✅ Cerrados</span>
+                          <span className="stat-value">{stat.ticketsCerrados}</span>
+                        </div>
+                        <div className="stat-item highlight">
+                          <span className="stat-label">⏱️ Tiempo Promedio</span>
+                          <span className="stat-value">{stat.tiempoPromedioFormateado}</span>
+                        </div>
+                        <div className="stat-item">
+                          <span className="stat-label">📈 Tasa de Cierre</span>
+                          <span className="stat-value">{stat.tasaCierre}%</span>
+                        </div>
+                      </div>
+                      <div className="agente-stats-actions">
+                        <button className="btn-small" onClick={() => descargarEstadisticaAgenteCSV(stat)}>⬇️ CSV</button>
+                        <button className="btn-small" onClick={() => descargarEstadisticaAgenteJSON(stat)}>⬇️ JSON</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-            <div className="modal-footer">
-              <button className="btn-primary" onClick={() => setShowStatsModal(false)}>
-                Cerrar
-              </button>
+              <div className="modal-footer">
+                <button className="btn-primary" onClick={() => setShowStatsModal(false)}>
+                  Cerrar
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </dialog>
       )}
     </div>
   );

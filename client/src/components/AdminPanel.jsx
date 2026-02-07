@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import PropTypes from 'prop-types';
 import axios from 'axios';
 import './AdminPanel.css';
 
@@ -70,13 +71,16 @@ export default function AdminPanel() {
   const eliminarUsuario = () => {};
   const handleSubmit = (e) => { e.preventDefault(); setMostrarModal(false); };
 
-  // Removed unused function descargarEstadisticasAgentesJSON
 
-  const descargarEstadisticaAgenteJSON = (stat) => {
-    const json = JSON.stringify(stat || {}, null, 2);
-    const nombre = stat?.agente?.nombre || stat?.agente?.username || stat?.agente?.email || 'agente';
-    descargarBlob(json, `estadisticas_agente_${nombre.replace(/\s+/g,'_')}_${Date.now()}.json`, 'application/json;charset=utf-8;');
-  };
+  const estadisticasBody = (() => {
+    if (user?.role !== 'admin') {
+      return <div className="acceso-denegado">Acceso denegado. Sólo administradores pueden ver estas estadísticas.</div>;
+    }
+    if (!estadisticas) {
+      return <div>Cargando estadísticas...</div>;
+    }
+    return <div>Mostrando estadísticas (datos de ejemplo no cargados en versión minimal).</div>;
+  })();
 
   return (
     <div className="admin-panel">
@@ -139,13 +143,7 @@ export default function AdminPanel() {
       {seccionActual === 'estadisticas' && (
         <div className="seccion-estadisticas">
           <h2>Estadísticas del Sistema</h2>
-          {user?.role !== 'admin' ? (
-            <div className="acceso-denegado">Acceso denegado. Sólo administradores pueden ver estas estadísticas.</div>
-          ) : estadisticas ? (
-            <div>Mostrando estadísticas (datos de ejemplo no cargados en versión minimal).</div>
-          ) : (
-            <div>Cargando estadísticas...</div>
-          )}
+          {estadisticasBody}
         </div>
       )}
 
@@ -185,8 +183,9 @@ export default function AdminPanel() {
       )}
 
       {mostrarModal && (
-        <div className="modal-overlay" onClick={() => setMostrarModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <>
+          <button type="button" className="modal-overlay" onClick={() => setMostrarModal(false)} aria-label="Cerrar modal" />
+          <div className="modal-content">
             <div className="modal-header">
               <h2>{usuarioEditando ? 'Editar Usuario' : 'Nuevo Usuario'}</h2>
               <button className="btn-cerrar" onClick={() => setMostrarModal(false)}>✖</button>
@@ -194,23 +193,23 @@ export default function AdminPanel() {
 
             <form onSubmit={handleSubmit} className="form-usuario">
               <div className="form-group">
-                <label>Usuario:</label>
-                <input type="text" value={formData.username} onChange={(e) => setFormData({ ...formData, username: e.target.value })} required placeholder="nombre_usuario" />
+                <label htmlFor="username-input">Usuario:</label>
+                <input id="username-input" type="text" value={formData.username} onChange={(e) => setFormData({ ...formData, username: e.target.value })} required placeholder="nombre_usuario" />
               </div>
 
               <div className="form-group">
-                <label>Email:</label>
-                <input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} required placeholder="usuario@example.com" />
+                <label htmlFor="email-input">Email:</label>
+                <input id="email-input" type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} required placeholder="usuario@example.com" />
               </div>
 
               <div className="form-group">
-                <label>Contraseña:</label>
-                <input type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} required={!usuarioEditando} placeholder={usuarioEditando ? 'Dejar vacío para no cambiar' : 'Contraseña'} />
+                <label htmlFor="password-input">Contraseña:</label>
+                <input id="password-input" type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} required={!usuarioEditando} placeholder={usuarioEditando ? 'Dejar vacío para no cambiar' : 'Contraseña'} />
               </div>
 
               <div className="form-group">
-                <label>Rol:</label>
-                <select value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value })}>
+                <label htmlFor="role-select">Rol:</label>
+                <select id="role-select" value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value })}>
                   <option value="agent">Agente</option>
                   <option value="admin">Administrador</option>
                 </select>
@@ -222,7 +221,7 @@ export default function AdminPanel() {
               </div>
             </form>
           </div>
-        </div>
+        </>
       )}
 
       {seccionActual === 'reportes' && (
@@ -268,7 +267,7 @@ function ReportesSection({ token, usuarios, filtrosReporte, setFiltrosReporte, r
   };
 
   const exportarCSV = () => {
-    if (!reporte || !reporte.tickets || reporte.tickets.length === 0) {
+    if (!reporte?.tickets || reporte.tickets.length === 0) {
       alert('No hay datos para exportar');
       return;
     }
@@ -303,7 +302,7 @@ function ReportesSection({ token, usuarios, filtrosReporte, setFiltrosReporte, r
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
+    link.remove();
   };
 
   return (
@@ -313,18 +312,18 @@ function ReportesSection({ token, usuarios, filtrosReporte, setFiltrosReporte, r
       <div className="filtros-reporte">
         <div className="filtros-grid">
           <div className="filtro-item">
-            <label>Fecha Inicio:</label>
-            <input type="date" value={filtrosReporte.fechaInicio} onChange={(e) => setFiltrosReporte({ ...filtrosReporte, fechaInicio: e.target.value })} />
+            <label htmlFor="fechaInicio-input">Fecha Inicio:</label>
+            <input id="fechaInicio-input" type="date" value={filtrosReporte.fechaInicio} onChange={(e) => setFiltrosReporte({ ...filtrosReporte, fechaInicio: e.target.value })} />
           </div>
 
           <div className="filtro-item">
-            <label>Fecha Fin:</label>
-            <input type="date" value={filtrosReporte.fechaFin} onChange={(e) => setFiltrosReporte({ ...filtrosReporte, fechaFin: e.target.value })} />
+            <label htmlFor="fechaFin-input">Fecha Fin:</label>
+            <input id="fechaFin-input" type="date" value={filtrosReporte.fechaFin} onChange={(e) => setFiltrosReporte({ ...filtrosReporte, fechaFin: e.target.value })} />
           </div>
 
           <div className="filtro-item">
-            <label>Estado:</label>
-            <select value={filtrosReporte.estado} onChange={(e) => setFiltrosReporte({ ...filtrosReporte, estado: e.target.value })}>
+            <label htmlFor="estado-select">Estado:</label>
+            <select id="estado-select" value={filtrosReporte.estado} onChange={(e) => setFiltrosReporte({ ...filtrosReporte, estado: e.target.value })}>
               <option value="">Todos</option>
               <option value="PENDIENTE">Pendiente</option>
               <option value="ASIGNADO">Asignado</option>
@@ -333,8 +332,8 @@ function ReportesSection({ token, usuarios, filtrosReporte, setFiltrosReporte, r
           </div>
 
           <div className="filtro-item">
-            <label>Prioridad:</label>
-            <select value={filtrosReporte.prioridad} onChange={(e) => setFiltrosReporte({ ...filtrosReporte, prioridad: e.target.value })}>
+            <label htmlFor="prioridad-select">Prioridad:</label>
+            <select id="prioridad-select" value={filtrosReporte.prioridad} onChange={(e) => setFiltrosReporte({ ...filtrosReporte, prioridad: e.target.value })}>
               <option value="">Todas</option>
               <option value="BAJA">Baja</option>
               <option value="MEDIA">Media</option>
@@ -344,8 +343,8 @@ function ReportesSection({ token, usuarios, filtrosReporte, setFiltrosReporte, r
           </div>
 
           <div className="filtro-item">
-            <label>Agente:</label>
-            <select value={filtrosReporte.asignadoA} onChange={(e) => setFiltrosReporte({ ...filtrosReporte, asignadoA: e.target.value })}>
+            <label htmlFor="agente-select">Agente:</label>
+            <select id="agente-select" value={filtrosReporte.asignadoA} onChange={(e) => setFiltrosReporte({ ...filtrosReporte, asignadoA: e.target.value })}>
               <option value="">Todos</option>
               {usuarios.map(usuario => (<option key={usuario._id} value={usuario._id}>{usuario.username}</option>))}
             </select>
@@ -360,7 +359,7 @@ function ReportesSection({ token, usuarios, filtrosReporte, setFiltrosReporte, r
 
       {(reporte || hasSearched) && (
         <div className="reporte-resultados">
-          {!reporte ? <div className="no-resultados">No se encontraron resultados para los filtros seleccionados.</div> : (
+          {reporte ? (
             <div>
               <h3>Detalle de Tickets ({(reporte.tickets || []).length})</h3>
               <div className="tabla-container">
@@ -397,9 +396,18 @@ function ReportesSection({ token, usuarios, filtrosReporte, setFiltrosReporte, r
                 </table>
               </div>
             </div>
-          )}
+          ) : <div className="no-resultados">No se encontraron resultados para los filtros seleccionados.</div>}
         </div>
       )}
     </div>
   );
 }
+
+ReportesSection.propTypes = {
+  token: PropTypes.string,
+  usuarios: PropTypes.array,
+  filtrosReporte: PropTypes.object.isRequired,
+  setFiltrosReporte: PropTypes.func.isRequired,
+  reporte: PropTypes.object,
+  setReporte: PropTypes.func.isRequired,
+};
