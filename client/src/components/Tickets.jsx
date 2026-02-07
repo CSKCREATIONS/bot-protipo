@@ -237,7 +237,7 @@ function Tickets({ onNavigate }) {
   };
 
   const cerrarTicket = async (ticketId) => {
-    if (!globalThis.confirm('¿Estás seguro de cerrar este ticket?')) return;
+    if (typeof window !== 'undefined' && !window.confirm('¿Estás seguro de cerrar este ticket?')) return;
 
     setLoading(true);
     try {
@@ -309,14 +309,14 @@ function Tickets({ onNavigate }) {
 
   const descargarBlob = (content, filename, type = 'text/csv;charset=utf-8;') => {
     const blob = new Blob([content], { type });
-    const url = globalThis.URL.createObjectURL(blob);
+    const url = (window.URL || URL).createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = filename;
     document.body.appendChild(a);
     a.click();
     a.remove();
-    globalThis.URL.revokeObjectURL(url);
+    (window.URL || URL).revokeObjectURL(url);
   };
 
   const descargarEstadisticasAgentesCSV = () => {
@@ -361,14 +361,14 @@ function Tickets({ onNavigate }) {
       }
       
       const blob = await response.blob();
-      const downloadUrl = globalThis.URL.createObjectURL(blob);
+      const downloadUrl = (window.URL || URL).createObjectURL(blob);
       const a = document.createElement('a');
       a.href = downloadUrl;
       a.download = `conversacion_ticket_${ticketId}_${Date.now()}.txt`;
       document.body.appendChild(a);
       a.click();
       a.remove();
-      globalThis.URL.revokeObjectURL(downloadUrl);
+      (window.URL || URL).revokeObjectURL(downloadUrl);
       
       alert('✅ Conversación descargada correctamente');
     } catch (error) {
