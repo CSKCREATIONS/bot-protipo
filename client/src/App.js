@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router } from 'react-router-dom';
 import Login from './components/Login.jsx';
 import Dashboard from './components/Dashboard.jsx';
+import { NotificationProvider } from './context/NotificationContext.js';
+import { ThemeProvider } from './context/ThemeContext.js';
 import './App.css';
 
 function App() {
@@ -9,17 +11,10 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Verificar si hay un token guardado
     const token = localStorage.getItem('token');
-    if (token) {
-      setIsAuthenticated(true);
-    }
+    if (token) setIsAuthenticated(true);
     setLoading(false);
   }, []);
-
-  const handleLogin = () => {
-    setIsAuthenticated(true);
-  };
 
   if (loading) {
     return (
@@ -30,15 +25,15 @@ function App() {
   }
 
   return (
-    <Router>
-      <div className="App">
-        {isAuthenticated ? (
-          <Dashboard />
-        ) : (
-          <Login onLogin={handleLogin} />
-        )}
-      </div>
-    </Router>
+    <ThemeProvider>
+      <NotificationProvider>
+        <Router>
+          <div className="App">
+            {isAuthenticated ? <Dashboard /> : <Login onLogin={() => setIsAuthenticated(true)} />}
+          </div>
+        </Router>
+      </NotificationProvider>
+    </ThemeProvider>
   );
 }
 

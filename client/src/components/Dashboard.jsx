@@ -4,21 +4,25 @@ import axios from 'axios';
 import './Dashboard.css';
 import Tickets from './Tickets.jsx';
 import AdminPanel from './AdminPanel.jsx';
+import { useTheme } from '../context/ThemeContext.js';
+import { useNotification } from '../context/NotificationContext.js';
+import { SkeletonList } from './Skeleton.jsx';
 
 const API_URL = process.env.REACT_APP_API_URL || '/api';
 
 function Dashboard() {
   const navigate = useNavigate();
   const location = useLocation();
-  
-  // Determinar vista actual desde la URL
+  const { darkMode, toggleDarkMode } = useTheme();
+  const { showNotification } = useNotification();
+
   const getVistaFromPath = () => {
     const path = location.pathname;
     if (path.includes('/tickets')) return 'tickets';
     if (path.includes('/admin')) return 'admin';
     return 'chat';
   };
-  
+
   const [vistaActual, setVistaActual] = useState(getVistaFromPath());
   const [userRole, setUserRole] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
@@ -28,12 +32,12 @@ function Dashboard() {
   const [ticketInfo, setTicketInfo] = useState(null);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [loadingConversations, setLoadingConversations] = useState(true);
   const [menuAbierto, setMenuAbierto] = useState(false);
   const messagesEndRef = useRef(null);
 
   const token = localStorage.getItem('token');
 
-  // Función para obtener URL con autenticación para archivos multimedia
   const getProxyUrl = (mediaUrl, mediaId) => {
     if (!mediaUrl && !mediaId) return '';
     const baseUrl = `${API_URL}/tickets/media/download`;
@@ -47,7 +51,6 @@ function Dashboard() {
   useEffect(() => {
     loadUserRole();
     loadConversations();
-    // Recargar conversaciones cada 5 segundos
     const interval = setInterval(loadConversations, 5000);
     return () => clearInterval(interval);
   }, []);
@@ -61,6 +64,7 @@ function Dashboard() {
       setCurrentUser(response.data.user);
     } catch (error) {
       console.error('Error cargando rol de usuario:', error);
+      showNotification('Error al cargar el perfil', 'error');
     }
   };
 
@@ -68,7 +72,6 @@ function Dashboard() {
     if (selectedConversation) {
       loadMessages(selectedConversation.phoneNumber);
       loadTicketInfo(selectedConversation.phoneNumber);
-      // Recargar mensajes y ticket cada 3 segundos
       const interval = setInterval(() => {
         loadMessages(selectedConversation.phoneNumber);
         loadTicketInfo(selectedConversation.phoneNumber);
@@ -79,15 +82,8 @@ function Dashboard() {
     }
   }, [selectedConversation]);
 
-  // useEffect(() => {
-  //   scrollToBottom();
-  // }, [messages]);
-
-  // const scrollToBottom = () => {
-  //   messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  // };
-
   const loadConversations = async () => {
+    setLoadingConversations(true);
     try {
       const response = await axios.get(`${API_URL}/messages/conversations`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -95,6 +91,9 @@ function Dashboard() {
       setConversations(response.data);
     } catch (error) {
       console.error('Error cargando conversaciones:', error);
+      showNotification('Error al cargar conversaciones', 'error');
+    } finally {
+      setLoadingConversations(false);
     }
   };
 
@@ -106,10 +105,10 @@ function Dashboard() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       await loadConversations();
-      alert('Usuario asignado correctamente');
+      showNotification('Usuario asignado correctamente', 'success');
     } catch (error) {
       console.error('Error asignando usuario:', error);
-      alert('Error al asignar usuario');
+      showNotification('Error al asignar usuario', 'error');
     }
   };
 
@@ -130,7 +129,6 @@ function Dashboard() {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (response.data.tickets && response.data.tickets.length > 0) {
-        // Obtener el ticket más reciente no cerrado, o el más reciente si todos están cerrados
         const ticketAbierto = response.data.tickets.find(t => t.estado !== 'CERRADO');
         const ticket = ticketAbierto || response.data.tickets[0];
         setTicketInfo(ticket);
@@ -152,17 +150,13 @@ function Dashboard() {
 
     setLoading(true);
     try {
-      // Recargar la información del ticket para verificar estado
       const ticketActualizado = await loadTicketInfo(selectedConversation.phoneNumber);
-      
-      // Si hay ticket, verificar que no esté cerrado
       if (ticketActualizado && ticketActualizado.estado === 'CERRADO') {
-        alert('Este ticket está cerrado. No puedes enviar mensajes.');
+        showNotification('Este ticket está cerrado. No puedes enviar mensajes.', 'warning');
         setLoading(false);
         return;
       }
 
-      // Enviar el mensaje
       await axios.post(
         `${API_URL}/messages/send`,
         {
@@ -170,9 +164,7 @@ function Dashboard() {
           message: newMessage,
           type: 'text'
         },
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
 
       setNewMessage('');
@@ -181,7 +173,7 @@ function Dashboard() {
     } catch (error) {
       console.error('Error enviando mensaje:', error);
       const errorMsg = error.response?.data?.error || error.message || 'Error al enviar mensaje';
-      alert(errorMsg);
+      showNotification(errorMsg, 'error');
     } finally {
       setLoading(false);
     }
@@ -216,13 +208,11 @@ function Dashboard() {
   const cambiarVista = (vista) => {
     setVistaActual(vista);
     setMenuAbierto(false);
-    // Actualizar URL
     if (vista === 'chat') navigate('/');
     else if (vista === 'tickets') navigate('/tickets');
     else if (vista === 'admin') navigate('/admin');
   };
-  
-  // Sincronizar vistaActual cuando cambia la URL
+
   useEffect(() => {
     const newVista = getVistaFromPath();
     if (newVista !== vistaActual) {
@@ -232,7 +222,6 @@ function Dashboard() {
 
   return (
     <div className={`dashboard ${vistaActual}-view`}>
-      {/* Overlay para cerrar menú */}
       {menuAbierto && (
         <div className="menu-overlay" onClick={() => setMenuAbierto(false)}></div>
       )}
@@ -241,9 +230,11 @@ function Dashboard() {
       <div className={`menu-lateral ${menuAbierto ? 'abierto' : ''}`}>
         <div className="menu-header">
           <h2>💬 WhatsApp Bot</h2>
+          <button onClick={toggleDarkMode} className="theme-toggle-btn">
+            {darkMode ? '☀️' : '🌙'}
+          </button>
           <button className="btn-cerrar-menu" onClick={() => setMenuAbierto(false)}>✖</button>
         </div>
-        
         <nav className="menu-opciones">
           <button 
             className={`menu-opcion ${vistaActual === 'chat' ? 'active' : ''}`}
@@ -269,7 +260,6 @@ function Dashboard() {
             </button>
           )}
         </nav>
-
         <div className="menu-footer">
           <button className="btn-logout-menu" onClick={handleLogout}>
             <span>🚪</span> Cerrar Sesión
@@ -278,234 +268,228 @@ function Dashboard() {
       </div>
 
       {vistaActual === 'chat' && (
-      <>
-      <div className="sidebar">
-        <div className="sidebar-header">
-          <button className="btn-menu-hamburguesa-chat" onClick={() => setMenuAbierto(true)}>
-            ☰
-          </button>
-          <h2>💬 WhatsApp Bot</h2>
-          <button onClick={handleLogout} className="logout-btn">Salir</button>
-        </div>
-        
-        <div className="nav-tabs">
-          <button 
-            className={`nav-tab ${vistaActual === 'chat' ? 'active' : ''}`}
-            onClick={() => cambiarVista('chat')}
-          >
-            💬 Chat
-          </button>
-          <button 
-            className={`nav-tab ${vistaActual === 'tickets' ? 'active' : ''}`}
-            onClick={() => cambiarVista('tickets')}
-          >
-            🎫 Tickets
-          </button>
-          {userRole === 'admin' && (
-            <button 
-              className={`nav-tab ${vistaActual === 'admin' ? 'active' : ''}`}
-              onClick={() => cambiarVista('admin')}
-            >
-              👑 Admin
-            </button>
-          )}
-        </div>
-
-        {vistaActual === 'chat' && (
-          <div className="conversations-list">
-            {conversations.map((conv) => (
-              <div
-                key={conv._id}
-                className={`conversation-item ${selectedConversation?._id === conv._id ? 'active' : ''}`}
-                onClick={() => setSelectedConversation(conv)}
-              >
-              <div className="conversation-avatar">
-                {conv.name ? conv.name.charAt(0).toUpperCase() : '👤'}
-              </div>
-              <div className="conversation-info">
-                <div className="conversation-header">
-                  <span className="conversation-name">
-                    {conv.name || conv.phoneNumber}
-                  </span>
-                  <span className="conversation-time">
-                    {formatTime(conv.lastMessageTime)}
-                  </span>
-                </div>
-                <div className="conversation-last-message">
-                  {conv.lastMessage.substring(0, 40)}
-                  {conv.lastMessage.length > 40 ? '...' : ''}
-                </div>
-                <div className="conversation-details">
-                  {conv.placa && <span className="detail-badge">🚗 {conv.placa}</span>}
-                  {conv.estado && (
-                    <span className={`estado-badge estado-${conv.estado.toLowerCase()}`}>
-                      {conv.estado}
-                    </span>
-                  )}
-                  {conv.estado === 'EN_COLA' && conv.posicionEnCola && (
-                    <span className="cola-badge">Cola: #{conv.posicionEnCola}</span>
-                  )}
-                </div>
-                {conv.unreadCount > 0 && (
-                  <span className="unread-badge">{conv.unreadCount}</span>
-                )}
-              </div>
+        <>
+          <div className="sidebar">
+            <div className="sidebar-header">
+              <button className="btn-menu-hamburguesa-chat" onClick={() => setMenuAbierto(true)}>☰</button>
+              <h2>💬 WhatsApp Bot</h2>
+              <button onClick={toggleDarkMode} className="theme-toggle-btn">
+                {darkMode ? '☀️' : '🌙'}
+              </button>
+              <button onClick={handleLogout} className="logout-btn">Salir</button>
             </div>
-          ))}
-        </div>
-        )}
-      </div>
-
-      <div className="chat-area">
-        {selectedConversation ? (
-          <>
-            <div className="chat-header">
-              <div className="chat-header-info">
-                <div className="chat-avatar">
-                  {selectedConversation.name 
-                    ? selectedConversation.name.charAt(0).toUpperCase() 
-                    : '👤'}
-                </div>
-                <div>
-                  <h3>{selectedConversation.name || selectedConversation.phoneNumber}</h3>
-                  <p className="phone-number">{selectedConversation.phoneNumber}</p>
-                  {selectedConversation.placa && (
-                    <p className="user-detail">🚗 Placa: {selectedConversation.placa}</p>
-                  )}
-                  {selectedConversation.cedula && (
-                    <p className="user-detail">🆔 Cédula: {selectedConversation.cedula}</p>
-                  )}
-                  <p className="user-detail">
-                    Estado: <span className={`estado-inline estado-${selectedConversation.estado?.toLowerCase()}`}>
-                      {selectedConversation.estado || 'INICIO'}
-                    </span>
-                  </p>
-                </div>
-              </div>
-
-              {/* Banner con botón de asignar o información del ticket dentro del header */}
-              {ticketInfo && ticketInfo.asignadoA ? (
-                <div className="ticket-asignado-banner" style={{ 
-                  margin: '0 0 0 auto', 
-                  maxWidth: '350px',
-                  padding: '8px 12px',
-                  fontSize: '13px'
-                }}>
-                  <div className="banner-icon" style={{ fontSize: '16px' }}>🎫</div>
-                  <div className="banner-content" style={{ gap: '4px' }}>
-                    <strong style={{ fontSize: '12px' }}>Tomado por:</strong>
-                    <span className="agente-nombre" style={{ fontSize: '13px' }}>{ticketInfo.asignadoA.username}</span>
-                  </div>
-                  <div className="banner-ticket" style={{ fontSize: '12px' }}>
-                    <strong>{ticketInfo.numeroTicket}</strong>
-                  </div>
-                </div>
-              ) : selectedConversation.estado === 'EN_COLA' && (
+            <div className="nav-tabs">
+              <button 
+                className={`nav-tab ${vistaActual === 'chat' ? 'active' : ''}`}
+                onClick={() => cambiarVista('chat')}
+              >
+                💬 Chat
+              </button>
+              <button 
+                className={`nav-tab ${vistaActual === 'tickets' ? 'active' : ''}`}
+                onClick={() => cambiarVista('tickets')}
+              >
+                🎫 Tickets
+              </button>
+              {userRole === 'admin' && (
                 <button 
-                  onClick={() => asignarUsuario(selectedConversation.phoneNumber)} 
-                  className="asignar-btn"
-                  style={{ 
-                    marginLeft: 'auto',
-                    padding: '12px 24px',
-                    fontSize: '16px',
-                    fontWeight: 'bold'
-                  }}
+                  className={`nav-tab ${vistaActual === 'admin' ? 'active' : ''}`}
+                  onClick={() => cambiarVista('admin')}
                 >
-                  🎫 Asignar a mí
+                  👑 Admin
                 </button>
               )}
             </div>
-
-        <div className="messages-container">
-          {messages.map((msg, index) => {
-            const showDate = index === 0 || 
-              formatDate(messages[index - 1].timestamp) !== formatDate(msg.timestamp);
-            
-            return (
-              <React.Fragment key={msg._id}>
-                {showDate && (
-                  <div className="date-divider">
-                    {formatDate(msg.timestamp)}
-                  </div>
-                )}
-                <div className={`message ${msg.direction}`}>
-                  <div className="message-content">
-                    {msg.type === 'image' && msg.mediaUrl && (
-                      <img 
-                        src={getProxyUrl(msg.mediaUrl, msg.mediaId)} 
-                        alt="Imagen" 
-                        className="message-image"
-                        onError={(e) => {
-                          e.target.onerror = null;
-                          e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2UwZTBlMCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjQwIj7wn5qrPC90ZXh0Pjwvc3ZnPg==';
-                        }}
-                      />
-                    )}
-                    {msg.type === 'video' && msg.mediaUrl && (
-                      <video controls className="message-video">
-                        <source src={getProxyUrl(msg.mediaUrl, msg.mediaId)} type="video/mp4" />
-                      </video>
-                    )}
-                    {msg.type === 'audio' && msg.mediaUrl && (
-                      <audio controls className="message-audio">
-                        <source src={getProxyUrl(msg.mediaUrl, msg.mediaId)} type="audio/ogg" />
-                      </audio>
-                    )}
-                    {msg.type === 'document' && msg.mediaUrl && (
-                      <a href={getProxyUrl(msg.mediaUrl, msg.mediaId)} target="_blank" rel="noopener noreferrer" className="message-document">
-                        📄 {msg.message}
-                      </a>
-                    )}
-                    <div className="message-text">{msg.message}</div>
-                    <span className="message-time">
-                      {formatTime(msg.timestamp)}
-                      {msg.direction === 'outbound' && (
-                        <span className="message-status">
-                          {msg.status === 'sent' && ' ✓'}
-                          {msg.status === 'delivered' && ' ✓✓'}
-                          {msg.status === 'read' && ' ✓✓'}
+            <div className="conversations-list">
+              {loadingConversations ? (
+                <SkeletonList count={6} />
+              ) : (
+                conversations.map((conv) => (
+                  <div
+                    key={conv._id}
+                    className={`conversation-item ${selectedConversation?._id === conv._id ? 'active' : ''}`}
+                    onClick={() => setSelectedConversation(conv)}
+                  >
+                    <div className="conversation-avatar">
+                      {conv.name ? conv.name.charAt(0).toUpperCase() : '👤'}
+                    </div>
+                    <div className="conversation-info">
+                      <div className="conversation-header">
+                        <span className="conversation-name">
+                          {conv.name || conv.phoneNumber}
                         </span>
+                        <span className="conversation-time">
+                          {formatTime(conv.lastMessageTime)}
+                        </span>
+                      </div>
+                      <div className="conversation-last-message">
+                        {conv.lastMessage.substring(0, 40)}
+                        {conv.lastMessage.length > 40 ? '...' : ''}
+                      </div>
+                      <div className="conversation-details">
+                        {conv.placa && <span className="detail-badge">🚗 {conv.placa}</span>}
+                        {conv.estado && (
+                          <span className={`estado-badge estado-${conv.estado.toLowerCase()}`}>
+                            {conv.estado}
+                          </span>
+                        )}
+                        {conv.estado === 'EN_COLA' && conv.posicionEnCola && (
+                          <span className="cola-badge">Cola: #{conv.posicionEnCola}</span>
+                        )}
+                      </div>
+                      {conv.unreadCount > 0 && (
+                        <span className="unread-badge">{conv.unreadCount}</span>
                       )}
-                    </span>
+                    </div>
                   </div>
-                </div>
-              </React.Fragment>
-            );
-          })}
-          <div ref={messagesEndRef} />
-        </div>
-
-        <form className="message-input-container" onSubmit={handleSendMessage}>
-          <input
-            type="text"
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            placeholder="Escribe un mensaje..."
-            disabled={loading}
-            className="message-input"
-          />
-          <button type="submit" disabled={loading} className="send-button">
-            {loading ? '⏳' : '📤'}
-          </button>
-        </form>
-          </>
-        ) : (
-          <div className="no-chat-selected">
-            <h2>Selecciona una conversación</h2>
-            <p>Elige una conversación de la lista para comenzar a chatear</p>
+                ))
+              )}
+            </div>
           </div>
-        )}
-      </div>
-      </>
+
+          <div className="chat-area">
+            {selectedConversation ? (
+              <>
+                <div className="chat-header">
+                  <div className="chat-header-info">
+                    <div className="chat-avatar">
+                      {selectedConversation.name 
+                        ? selectedConversation.name.charAt(0).toUpperCase() 
+                        : '👤'}
+                    </div>
+                    <div>
+                      <h3>{selectedConversation.name || selectedConversation.phoneNumber}</h3>
+                      <p className="phone-number">{selectedConversation.phoneNumber}</p>
+                      {selectedConversation.placa && (
+                        <p className="user-detail">🚗 Placa: {selectedConversation.placa}</p>
+                      )}
+                      {selectedConversation.cedula && (
+                        <p className="user-detail">🆔 Cédula: {selectedConversation.cedula}</p>
+                      )}
+                      <p className="user-detail">
+                        Estado: <span className={`estado-inline estado-${selectedConversation.estado?.toLowerCase()}`}>
+                          {selectedConversation.estado || 'INICIO'}
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+                  {ticketInfo && ticketInfo.asignadoA ? (
+                    <div className="ticket-asignado-banner" style={{ 
+                      margin: '0 0 0 auto', 
+                      maxWidth: '350px',
+                      padding: '8px 12px',
+                      fontSize: '13px'
+                    }}>
+                      <div className="banner-icon" style={{ fontSize: '16px' }}>🎫</div>
+                      <div className="banner-content" style={{ gap: '4px' }}>
+                        <strong style={{ fontSize: '12px' }}>Tomado por:</strong>
+                        <span className="agente-nombre" style={{ fontSize: '13px' }}>{ticketInfo.asignadoA.username}</span>
+                      </div>
+                      <div className="banner-ticket" style={{ fontSize: '12px' }}>
+                        <strong>{ticketInfo.numeroTicket}</strong>
+                      </div>
+                    </div>
+                  ) : selectedConversation.estado === 'EN_COLA' && (
+                    <button 
+                      onClick={() => asignarUsuario(selectedConversation.phoneNumber)} 
+                      className="asignar-btn"
+                      style={{ 
+                        marginLeft: 'auto',
+                        padding: '12px 24px',
+                        fontSize: '16px',
+                        fontWeight: 'bold'
+                      }}
+                    >
+                      🎫 Asignar a mí
+                    </button>
+                  )}
+                </div>
+
+                <div className="messages-container">
+                  {messages.map((msg, index) => {
+                    const showDate = index === 0 || 
+                      formatDate(messages[index - 1].timestamp) !== formatDate(msg.timestamp);
+                    
+                    return (
+                      <React.Fragment key={msg._id}>
+                        {showDate && (
+                          <div className="date-divider">
+                            {formatDate(msg.timestamp)}
+                          </div>
+                        )}
+                        <div className={`message ${msg.direction}`}>
+                          <div className="message-content">
+                            {msg.type === 'image' && msg.mediaUrl && (
+                              <img 
+                                src={getProxyUrl(msg.mediaUrl, msg.mediaId)} 
+                                alt="Imagen" 
+                                className="message-image"
+                                onError={(e) => {
+                                  e.target.onerror = null;
+                                  e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2UwZTBlMCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjQwIj7wn5qrPC90ZXh0Pjwvc3ZnPg==';
+                                }}
+                              />
+                            )}
+                            {msg.type === 'video' && msg.mediaUrl && (
+                              <video controls className="message-video">
+                                <source src={getProxyUrl(msg.mediaUrl, msg.mediaId)} type="video/mp4" />
+                              </video>
+                            )}
+                            {msg.type === 'audio' && msg.mediaUrl && (
+                              <audio controls className="message-audio">
+                                <source src={getProxyUrl(msg.mediaUrl, msg.mediaId)} type="audio/ogg" />
+                              </audio>
+                            )}
+                            {msg.type === 'document' && msg.mediaUrl && (
+                              <a href={getProxyUrl(msg.mediaUrl, msg.mediaId)} target="_blank" rel="noopener noreferrer" className="message-document">
+                                📄 {msg.message}
+                              </a>
+                            )}
+                            <div className="message-text">{msg.message}</div>
+                            <span className="message-time">
+                              {formatTime(msg.timestamp)}
+                              {msg.direction === 'outbound' && (
+                                <span className="message-status">
+                                  {msg.status === 'sent' && ' ✓'}
+                                  {msg.status === 'delivered' && ' ✓✓'}
+                                  {msg.status === 'read' && ' ✓✓'}
+                                </span>
+                              )}
+                            </span>
+                          </div>
+                        </div>
+                      </React.Fragment>
+                    );
+                  })}
+                  <div ref={messagesEndRef} />
+                </div>
+
+                <form className="message-input-container" onSubmit={handleSendMessage}>
+                  <input
+                    type="text"
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    placeholder="Escribe un mensaje..."
+                    disabled={loading}
+                    className="message-input"
+                  />
+                  <button type="submit" disabled={loading} className="send-button">
+                    {loading ? '⏳' : '📤'}
+                  </button>
+                </form>
+              </>
+            ) : (
+              <div className="no-chat-selected">
+                <h2>Selecciona una conversación</h2>
+                <p>Elige una conversación de la lista para comenzar a chatear</p>
+              </div>
+            )}
+          </div>
+        </>
       )}
-      
-      {vistaActual === 'tickets' && (
-        <Tickets onNavigate={cambiarVista} />
-      )}
-      
-      {vistaActual === 'admin' && userRole === 'admin' && (
-        <AdminPanel onNavigate={cambiarVista} />
-      )}
+
+      {vistaActual === 'tickets' && <Tickets onNavigate={cambiarVista} />}
+      {vistaActual === 'admin' && userRole === 'admin' && <AdminPanel onNavigate={cambiarVista} />}
     </div>
   );
 }

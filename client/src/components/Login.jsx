@@ -153,7 +153,7 @@ function Login({ onLogin }) {
           username: sanitizeInput(formData.username),
           email: sanitizeInput(formData.email).toLowerCase(),
           password: formData.password
-        });
+        },{ withCredentials: false });
 
         saveAuth(response);
       } else {
@@ -167,6 +167,8 @@ function Login({ onLogin }) {
         const response = await axios.post(`${API_URL}/auth/login`, {
           email: sanitizeInput(formData.email).toLowerCase(),
           password: formData.password
+        }, {
+          withCredentials: false
         });
 
         saveAuth(response);

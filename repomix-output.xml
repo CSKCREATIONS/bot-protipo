@@ -1319,31 +1319,6 @@ export default reportWebVitals;
 import '@testing-library/jest-dom';
 </file>
 
-<file path="config/database.js">
-const { Sequelize } = require('sequelize');
-require('dotenv').config();
-
-const sequelize = new Sequelize(
-  process.env.MYSQL_DATABASE || 'whatsapp_bot',
-  process.env.MYSQL_USER || 'root',
-  process.env.MYSQL_PASSWORD || '',
-  {
-    host: process.env.MYSQL_HOST || 'localhost',
-    port: process.env.MYSQL_PORT || 3306,
-    dialect: 'mysql',
-    logging: false,
-    pool: {
-      max: 5,
-      min: 0,
-      acquire: 30000,
-      idle: 10000
-    }
-  }
-);
-
-module.exports = sequelize;
-</file>
-
 <file path="createAdmin.js">
 const { User, syncDatabase } = require('./models');
 require('dotenv').config();
@@ -5119,51 +5094,6 @@ Si después de seguir estos pasos el problema persiste:
 **Última actualización:** 2 de febrero de 2026
 </file>
 
-<file path="models/index.js">
-const sequelize = require('../config/database');
-const User = require('./User');
-const Conversation = require('./Conversation');
-const Message = require('./Message');
-const Ticket = require('./Ticket');
-
-// Definir relaciones
-Conversation.belongsTo(User, { as: 'assignedAgent', foreignKey: 'assignedAgentId' });
-User.hasMany(Conversation, { foreignKey: 'assignedAgentId' });
-
-Message.belongsTo(Conversation, { foreignKey: 'conversationId' });
-Conversation.hasMany(Message, { foreignKey: 'conversationId' });
-
-Ticket.belongsTo(Conversation, { foreignKey: 'conversationId' });
-Conversation.hasMany(Ticket, { foreignKey: 'conversationId' });
-
-Ticket.belongsTo(User, { as: 'agente', foreignKey: 'asignadoA' });
-Ticket.belongsTo(User, { as: 'locked', foreignKey: 'lockedBy' });
-Ticket.belongsTo(User, { as: 'cerrador', foreignKey: 'cerradoPor' });
-
-// Función para sincronizar base de datos
-const syncDatabase = async (force = false) => {
-  try {
-    await sequelize.authenticate();
-    console.log('✅ Conexión a MySQL establecida correctamente');
-    
-    await sequelize.sync({ force, alter: !force });
-    console.log(`✅ Tablas sincronizadas ${force ? '(recreadas)' : '(actualizadas)'}`);
-  } catch (error) {
-    console.error('❌ Error sincronizando base de datos:', error);
-    throw error;
-  }
-};
-
-module.exports = {
-  sequelize,
-  User,
-  Conversation,
-  Message,
-  Ticket,
-  syncDatabase
-};
-</file>
-
 <file path="resetPassword.js">
 const { User, syncDatabase } = require('./models');
 const bcrypt = require('bcryptjs');
@@ -6316,269 +6246,6 @@ async function migrarMensajes() {
 }
 
 migrarMensajes();
-</file>
-
-<file path="scripts/migrarMongoDB_a_MySQL.js">
-const mongoose = require('mongoose');
-const { sequelize, User, Conversation, Message, Ticket } = require('../models');
-require('dotenv').config();
-
-// Modelos de MongoDB (los antiguos)
-const UserMongo = mongoose.model('User', new mongoose.Schema({
-  username: String,
-  email: String,
-  password: String,
-  role: String,
-  createdAt: Date
-}), 'users');
-
-const ConversationMongo = mongoose.model('Conversation', new mongoose.Schema({
-  phoneNumber: String,
-  name: String,
-  placa: String,
-  cedula: String,
-  estado: String,
-  messages: Array,
-  lastMessage: String,
-  lastMessageTime: Date,
-  unreadCount: Number,
-  status: String,
-  assignedAgent: mongoose.Schema.Types.ObjectId,
-  posicionEnCola: Number,
-  timestampEnCola: Date,
-  createdAt: Date
-}), 'conversations');
-
-const MessageMongo = mongoose.model('Message', new mongoose.Schema({
-  conversationId: String,
-  from: String,
-  to: String,
-  message: String,
-  type: String,
-  direction: String,
-  status: String,
-  whatsappMessageId: String,
-  mediaId: String,
-  mediaUrl: String,
-  caption: String,
-  timestamp: Date
-}), 'messages');
-
-const TicketMongo = mongoose.model('Ticket', new mongoose.Schema({
-  numeroTicket: String,
-  conversationId: mongoose.Schema.Types.ObjectId,
-  phoneNumber: String,
-  nombreCliente: String,
-  placa: String,
-  cedula: String,
-  descripcion: String,
-  contadorTickets: Number,
-  estado: String,
-  prioridad: String,
-  asignadoA: mongoose.Schema.Types.ObjectId,
-  lockedBy: mongoose.Schema.Types.ObjectId,
-  lockedAt: Date,
-  fechaCreacion: Date,
-  fechaActualizacion: Date,
-  fechaCierre: Date,
-  fechaFinalizacion: Date,
-  tiempoResolucion: Number,
-  cerradoPor: mongoose.Schema.Types.ObjectId,
-  notas: Array,
-  archivosAdjuntos: Array
-}), 'tickets');
-
-async function migrateData() {
-  try {
-    console.log('🔄 Iniciando migración de MongoDB a MySQL...\n');
-    
-    // Conectar a MongoDB
-    await mongoose.connect(process.env.MONGODB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true
-    });
-    console.log('✅ Conectado a MongoDB');
-    
-    // Conectar a MySQL y crear tablas
-    await sequelize.authenticate();
-    console.log('✅ Conectado a MySQL');
-    
-    await sequelize.sync({ force: true }); // Recrear tablas
-    console.log('✅ Tablas MySQL creadas\n');
-    
-    // Mapa para conversión de ObjectIds
-    const userIdMap = new Map();
-    const conversationIdMap = new Map();
-    
-    // 1. Migrar Usuarios
-    console.log('📊 Migrando usuarios...');
-    const usersMongo = await UserMongo.find();
-    for (const userDoc of usersMongo) {
-      const userSQL = await User.create({
-        username: userDoc.username,
-        email: userDoc.email,
-        password: userDoc.password, // Ya está hasheado
-        role: userDoc.role || 'agent',
-        createdAt: userDoc.createdAt
-      }, {
-        hooks: false // Desactivar hooks para no re-hashear
-      });
-      userIdMap.set(userDoc._id.toString(), userSQL.id);
-    }
-    console.log(`✅ ${usersMongo.length} usuarios migrados\n`);
-    
-    // 2. Migrar Conversaciones
-    console.log('📊 Migrando conversaciones...');
-    const conversationsMongo = await ConversationMongo.find();
-    for (const convDoc of conversationsMongo) {
-      const assignedAgentId = convDoc.assignedAgent 
-        ? userIdMap.get(convDoc.assignedAgent.toString()) 
-        : null;
-      
-      const convSQL = await Conversation.create({
-        phoneNumber: convDoc.phoneNumber,
-        name: convDoc.name || '',
-        placa: convDoc.placa || '',
-        cedula: convDoc.cedula || '',
-        estado: convDoc.estado || 'INICIO',
-        lastMessage: convDoc.lastMessage || '',
-        lastMessageTime: convDoc.lastMessageTime || new Date(),
-        unreadCount: convDoc.unreadCount || 0,
-        status: convDoc.status || 'active',
-        assignedAgentId,
-        posicionEnCola: convDoc.posicionEnCola,
-        timestampEnCola: convDoc.timestampEnCola,
-        createdAt: convDoc.createdAt
-      });
-      
-      conversationIdMap.set(convDoc._id.toString(), convSQL.id);
-      
-      // Migrar mensajes embebidos en conversation
-      if (convDoc.messages && convDoc.messages.length > 0) {
-        const messagesToCreate = convDoc.messages.map(msg => ({
-          conversationId: convSQL.id,
-          from: msg.from,
-          to: msg.to,
-          message: msg.message,
-          type: msg.type || 'text',
-          direction: msg.direction,
-          status: msg.status || 'sent',
-          whatsappMessageId: msg.whatsappMessageId,
-          mediaId: msg.mediaId,
-          mediaUrl: msg.mediaUrl,
-          caption: msg.caption,
-          timestamp: msg.timestamp || new Date()
-        }));
-        
-        await Message.bulkCreate(messagesToCreate);
-      }
-    }
-    console.log(`✅ ${conversationsMongo.length} conversaciones migradas\n`);
-    
-    // 3. Migrar Mensajes (tabla separada)
-    console.log('📊 Migrando mensajes (tabla messages)...');
-    const messagesMongo = await MessageMongo.find();
-    let migratedMessages = 0;
-    
-    for (const msgDoc of messagesMongo) {
-      // conversationId en Message puede ser String del ObjectId
-      const conversationId = conversationIdMap.get(msgDoc.conversationId);
-      
-      if (conversationId) {
-        await Message.create({
-          conversationId,
-          from: msgDoc.from,
-          to: msgDoc.to,
-          message: msgDoc.message,
-          type: msgDoc.type || 'text',
-          direction: msgDoc.direction,
-          status: msgDoc.status || 'sent',
-          whatsappMessageId: msgDoc.whatsappMessageId,
-          mediaId: msgDoc.mediaId,
-          mediaUrl: msgDoc.mediaUrl,
-          caption: msgDoc.caption,
-          timestamp: msgDoc.timestamp || new Date()
-        });
-        migratedMessages++;
-      }
-    }
-    console.log(`✅ ${migratedMessages} mensajes migrados\n`);
-    
-    // 4. Migrar Tickets
-    console.log('📊 Migrando tickets...');
-    const ticketsMongo = await TicketMongo.find();
-    for (const ticketDoc of ticketsMongo) {
-      const conversationId = conversationIdMap.get(ticketDoc.conversationId.toString());
-      const asignadoA = ticketDoc.asignadoA 
-        ? userIdMap.get(ticketDoc.asignadoA.toString()) 
-        : null;
-      const lockedBy = ticketDoc.lockedBy 
-        ? userIdMap.get(ticketDoc.lockedBy.toString()) 
-        : null;
-      const cerradoPor = ticketDoc.cerradoPor 
-        ? userIdMap.get(ticketDoc.cerradoPor.toString()) 
-        : null;
-      
-      if (conversationId) {
-        await Ticket.create({
-          numeroTicket: ticketDoc.numeroTicket,
-          conversationId,
-          phoneNumber: ticketDoc.phoneNumber,
-          nombreCliente: ticketDoc.nombreCliente,
-          placa: ticketDoc.placa || '',
-          cedula: ticketDoc.cedula || '',
-          descripcion: ticketDoc.descripcion || 'Solicitud de atención',
-          contadorTickets: ticketDoc.contadorTickets || 1,
-          estado: ticketDoc.estado || 'PENDIENTE',
-          prioridad: ticketDoc.prioridad || 'MEDIA',
-          asignadoA,
-          lockedBy,
-          lockedAt: ticketDoc.lockedAt,
-          fechaCierre: ticketDoc.fechaCierre,
-          fechaFinalizacion: ticketDoc.fechaFinalizacion,
-          tiempoResolucion: ticketDoc.tiempoResolucion,
-          cerradoPor,
-          notas: JSON.stringify(ticketDoc.notas || []),
-          createdAt: ticketDoc.fechaCreacion,
-          updatedAt: ticketDoc.fechaActualizacion
-        }, {
-          hooks: false // Desactivar hooks para preservar datos originales
-        });
-      }
-    }
-    console.log(`✅ ${ticketsMongo.length} tickets migrados\n`);
-    
-    console.log('✅ Migración completada exitosamente!');
-    console.log('\n📊 Resumen:');
-    console.log(`   - Usuarios: ${usersMongo.length}`);
-    console.log(`   - Conversaciones: ${conversationsMongo.length}`);
-    console.log(`   - Mensajes: ${migratedMessages}`);
-    console.log(`   - Tickets: ${ticketsMongo.length}`);
-    
-  } catch (error) {
-    console.error('❌ Error durante la migración:', error);
-    throw error;
-  } finally {
-    await mongoose.disconnect();
-    await sequelize.close();
-    console.log('\n🔌 Conexiones cerradas');
-  }
-}
-
-// Ejecutar migración
-if (require.main === module) {
-  migrateData()
-    .then(() => {
-      console.log('\n✅ Proceso de migración finalizado');
-      process.exit(0);
-    })
-    .catch(err => {
-      console.error('\n❌ Error fatal:', err);
-      process.exit(1);
-    });
-}
-
-module.exports = migrateData;
 </file>
 
 <file path="seed.js">
@@ -8317,7 +7984,7 @@ function Login({ onLogin }) {
           username: sanitizeInput(formData.username),
           email: sanitizeInput(formData.email).toLowerCase(),
           password: formData.password
-        });
+        },{ withCredentials: false });
 
         saveAuth(response);
       } else {
@@ -8331,6 +7998,8 @@ function Login({ onLogin }) {
         const response = await axios.post(`${API_URL}/auth/login`, {
           email: sanitizeInput(formData.email).toLowerCase(),
           password: formData.password
+        }, {
+          withCredentials: false
         });
 
         saveAuth(response);
@@ -9231,339 +8900,74 @@ export default Login;
 }
 </file>
 
-<file path="middleware/auth.js">
-const jwt = require('jsonwebtoken');
-const { User } = require('../models');
+<file path="config/database.js">
+const { Sequelize } = require('sequelize');
+require('dotenv').config();
 
-module.exports = async (req, res, next) => {
+const sequelize = new Sequelize(
+  process.env.MYSQL_DATABASE || 'whatsapp_bot',
+  process.env.MYSQL_USER || 'root',
+  process.env.MYSQL_PASSWORD || '',
+  {
+    host: process.env.MYSQL_HOST || 'localhost',
+    port: process.env.MYSQL_PORT || 3306,
+    dialect: 'mysql',
+    logging: false,
+    pool: {
+      max: 5,
+      min: 0,
+      acquire: 30000,
+      idle: 10000
+    }
+  }
+);
+
+module.exports = sequelize;
+</file>
+
+<file path="models/index.js">
+const sequelize = require('../config/database');
+const User = require('./User');
+const Conversation = require('./Conversation');
+const Message = require('./Message');
+const Ticket = require('./Ticket');
+
+// Definir relaciones
+Conversation.belongsTo(User, { as: 'assignedAgent', foreignKey: 'assignedAgentId' });
+User.hasMany(Conversation, { foreignKey: 'assignedAgentId' });
+
+Message.belongsTo(Conversation, { foreignKey: 'conversationId' });
+Conversation.hasMany(Message, { foreignKey: 'conversationId' });
+
+Ticket.belongsTo(Conversation, { foreignKey: 'conversationId' });
+Conversation.hasMany(Ticket, { foreignKey: 'conversationId' });
+
+Ticket.belongsTo(User, { as: 'agente', foreignKey: 'asignadoA' });
+Ticket.belongsTo(User, { as: 'locked', foreignKey: 'lockedBy' });
+Ticket.belongsTo(User, { as: 'cerrador', foreignKey: 'cerradoPor' });
+
+// Función para sincronizar base de datos
+const syncDatabase = async (force = false) => {
   try {
-    // Obtener token del header
-    const token = req.header('Authorization')?.replace('Bearer ', '');
-
-    if (!token) {
-      return res.status(401).json({ error: 'No hay token, autorización denegada' });
-    }
-
-    // Verificar token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    // Buscar usuario
-    const user = await User.findByPk(decoded.userId, {
-      attributes: { exclude: ['password'] }
-    });
-
-    if (!user) {
-      return res.status(401).json({ error: 'Token inválido' });
-    }
-
-    // Agregar usuario al request
-    req.user = user;
-    next();
+    await sequelize.authenticate();
+    console.log('✅ Conexión a MySQL establecida correctamente');
+    
+    await sequelize.sync({ force, alter: !force });
+    console.log(`✅ Tablas sincronizadas ${force ? '(recreadas)' : '(actualizadas)'}`);
   } catch (error) {
-    res.status(401).json({ error: 'Token inválido' });
+    console.error('❌ Error sincronizando base de datos:', error);
+    throw error;
   }
 };
-</file>
 
-<file path="models/Conversation.js">
-const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
-
-const Conversation = sequelize.define('Conversation', {
-  id: {
-    type: DataTypes.INTEGER,
-    autoIncrement: true,
-    primaryKey: true
-  },
-  phoneNumber: {
-    type: DataTypes.STRING(50),
-    allowNull: false,
-    unique: true
-  },
-  name: {
-    type: DataTypes.STRING(255),
-    defaultValue: ''
-  },
-  placa: {
-    type: DataTypes.STRING(50),
-    defaultValue: ''
-  },
-  cedula: {
-    type: DataTypes.STRING(50),
-    defaultValue: ''
-  },
-  estado: {
-    type: DataTypes.ENUM('INICIO', 'ESPERANDO_NOMBRE', 'ESPERANDO_PLACA', 'ESPERANDO_CEDULA', 'EN_COLA', 'ASIGNADO'),
-    defaultValue: 'INICIO'
-  },
-  lastMessage: {
-    type: DataTypes.TEXT,
-    defaultValue: ''
-  },
-  lastMessageTime: {
-    type: DataTypes.DATE,
-    defaultValue: DataTypes.NOW
-  },
-  unreadCount: {
-    type: DataTypes.INTEGER,
-    defaultValue: 0
-  },
-  status: {
-    type: DataTypes.ENUM('active', 'archived', 'blocked'),
-    defaultValue: 'active'
-  },
-  assignedAgentId: {
-    type: DataTypes.INTEGER,
-    allowNull: true,
-    references: {
-      model: 'users',
-      key: 'id'
-    }
-  },
-  posicionEnCola: {
-    type: DataTypes.INTEGER,
-    allowNull: true
-  },
-  timestampEnCola: {
-    type: DataTypes.DATE,
-    allowNull: true
-  }
-}, {
-  tableName: 'conversations',
-  timestamps: true,
-  indexes: [
-    {
-      fields: ['estado', 'timestampEnCola']
-    }
-  ]
-});
-
-module.exports = Conversation;
-</file>
-
-<file path="models/Message.js">
-const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
-
-const Message = sequelize.define('Message', {
-  id: {
-    type: DataTypes.INTEGER,
-    autoIncrement: true,
-    primaryKey: true
-  },
-  conversationId: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-    references: {
-      model: 'conversations',
-      key: 'id'
-    }
-  },
-  from: {
-    type: DataTypes.STRING(50),
-    allowNull: false
-  },
-  to: {
-    type: DataTypes.STRING(50),
-    allowNull: false
-  },
-  message: {
-    type: DataTypes.TEXT,
-    allowNull: false
-  },
-  type: {
-    type: DataTypes.ENUM('text', 'image', 'video', 'audio', 'document'),
-    defaultValue: 'text'
-  },
-  direction: {
-    type: DataTypes.ENUM('inbound', 'outbound'),
-    allowNull: false
-  },
-  status: {
-    type: DataTypes.ENUM('sent', 'delivered', 'read', 'failed'),
-    defaultValue: 'sent'
-  },
-  whatsappMessageId: {
-    type: DataTypes.STRING(255),
-    unique: true,
-    allowNull: true
-  },
-  mediaId: {
-    type: DataTypes.STRING(255)
-  },
-  mediaUrl: {
-    type: DataTypes.TEXT
-  },
-  caption: {
-    type: DataTypes.TEXT
-  },
-  timestamp: {
-    type: DataTypes.DATE,
-    defaultValue: DataTypes.NOW
-  }
-}, {
-  tableName: 'messages',
-  timestamps: true,
-  indexes: [
-    {
-      fields: ['conversationId', 'timestamp']
-    }
-  ]
-});
-
-module.exports = Message;
-</file>
-
-<file path="models/Ticket.js">
-const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
-
-const Ticket = sequelize.define('Ticket', {
-  id: {
-    type: DataTypes.INTEGER,
-    autoIncrement: true,
-    primaryKey: true
-  },
-  numeroTicket: {
-    type: DataTypes.STRING(50),
-    unique: true,
-    allowNull: false
-  },
-  conversationId: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-    references: {
-      model: 'conversations',
-      key: 'id'
-    }
-  },
-  phoneNumber: {
-    type: DataTypes.STRING(50),
-    allowNull: false
-  },
-  nombreCliente: {
-    type: DataTypes.STRING(255),
-    allowNull: false
-  },
-  placa: {
-    type: DataTypes.STRING(50),
-    defaultValue: ''
-  },
-  cedula: {
-    type: DataTypes.STRING(50),
-    defaultValue: ''
-  },
-  descripcion: {
-    type: DataTypes.TEXT,
-    defaultValue: 'Solicitud de atención'
-  },
-  contadorTickets: {
-    type: DataTypes.INTEGER,
-    defaultValue: 1
-  },
-  estado: {
-    type: DataTypes.ENUM('PENDIENTE', 'ASIGNADO', 'CERRADO'),
-    defaultValue: 'PENDIENTE'
-  },
-  prioridad: {
-    type: DataTypes.ENUM('BAJA', 'MEDIA', 'ALTA', 'URGENTE'),
-    defaultValue: 'MEDIA'
-  },
-  asignadoA: {
-    type: DataTypes.INTEGER,
-    allowNull: true,
-    references: {
-      model: 'users',
-      key: 'id'
-    }
-  },
-  lockedBy: {
-    type: DataTypes.INTEGER,
-    allowNull: true,
-    references: {
-      model: 'users',
-      key: 'id'
-    }
-  },
-  lockedAt: {
-    type: DataTypes.DATE,
-    allowNull: true
-  },
-  fechaAsignacion: {
-    type: DataTypes.DATE,
-    allowNull: true
-  },
-  fechaCierre: {
-    type: DataTypes.DATE,
-    allowNull: true
-  },
-  fechaFinalizacion: {
-    type: DataTypes.DATE,
-    allowNull: true
-  },
-  tiempoResolucion: {
-    type: DataTypes.INTEGER,
-    allowNull: true,
-    comment: 'Tiempo en minutos'
-  },
-  cerradoPor: {
-    type: DataTypes.INTEGER,
-    allowNull: true,
-    references: {
-      model: 'users',
-      key: 'id'
-    }
-  },
-  notas: {
-    type: DataTypes.TEXT,
-    defaultValue: ''
-  }
-}, {
-  tableName: 'tickets',
-  timestamps: true,
-  indexes: [
-    {
-      fields: ['estado', 'createdAt']
-    },
-    {
-      fields: ['asignadoA', 'estado']
-    },
-    {
-      fields: ['phoneNumber']
-    }
-  ],
-  hooks: {
-    beforeCreate: async (ticket) => {
-      // Generar número de ticket
-      if (!ticket.numeroTicket) {
-        const count = await Ticket.count();
-        const fecha = new Date();
-        const año = fecha.getFullYear();
-        const mes = String(fecha.getMonth() + 1).padStart(2, '0');
-        ticket.numeroTicket = `TKT-${año}${mes}-${String(count + 1).padStart(5, '0')}`;
-      }
-      
-      // Contar tickets del usuario
-      if (!ticket.contadorTickets) {
-        const userTickets = await Ticket.count({
-          where: { phoneNumber: ticket.phoneNumber }
-        });
-        ticket.contadorTickets = userTickets + 1;
-      }
-    },
-    beforeUpdate: async (ticket) => {
-      // Calcular tiempo de resolución al cerrar
-      if (ticket.changed('estado') && ticket.estado === 'CERRADO' && !ticket.tiempoResolucion) {
-        ticket.fechaCierre = new Date();
-        ticket.fechaFinalizacion = new Date();
-        const tiempoMs = ticket.fechaCierre - ticket.createdAt;
-        ticket.tiempoResolucion = Math.round(tiempoMs / (1000 * 60));
-      }
-    }
-  }
-});
-
-module.exports = Ticket;
+module.exports = {
+  sequelize,
+  User,
+  Conversation,
+  Message,
+  Ticket,
+  syncDatabase
+};
 </file>
 
 <file path="routes/cola.js">
@@ -10150,49 +9554,267 @@ router.post('/:id/cerrar', auth, async (req, res) => {
 module.exports = router;
 </file>
 
-<file path="server.js">
-const express = require('express');
-const cors = require('cors');
-const bodyParser = require('body-parser');
-const dotenv = require('dotenv');
-const { syncDatabase } = require('./models');
+<file path="scripts/migrarMongoDB_a_MySQL.js">
+const mongoose = require('mongoose');
+const { sequelize, User, Conversation, Message, Ticket } = require('../models');
+require('dotenv').config();
 
-// Cargar variables de entorno
-dotenv.config();
+// Modelos de MongoDB (los antiguos)
+const UserMongo = mongoose.model('User', new mongoose.Schema({
+  username: String,
+  email: String,
+  password: String,
+  role: String,
+  createdAt: Date
+}), 'users');
 
-const app = express();
+const ConversationMongo = mongoose.model('Conversation', new mongoose.Schema({
+  phoneNumber: String,
+  name: String,
+  placa: String,
+  cedula: String,
+  estado: String,
+  messages: Array,
+  lastMessage: String,
+  lastMessageTime: Date,
+  unreadCount: Number,
+  status: String,
+  assignedAgent: mongoose.Schema.Types.ObjectId,
+  posicionEnCola: Number,
+  timestampEnCola: Date,
+  createdAt: Date
+}), 'conversations');
 
-// Middlewares
-app.use(cors());
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+const MessageMongo = mongoose.model('Message', new mongoose.Schema({
+  conversationId: String,
+  from: String,
+  to: String,
+  message: String,
+  type: String,
+  direction: String,
+  status: String,
+  whatsappMessageId: String,
+  mediaId: String,
+  mediaUrl: String,
+  caption: String,
+  timestamp: Date
+}), 'messages');
 
-// Rutas
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/webhook', require('./routes/webhook'));
-app.use('/api/messages', require('./routes/messages'));
-app.use('/api/cola', require('./routes/cola'));
-app.use('/api/tickets', require('./routes/tickets'));
+const TicketMongo = mongoose.model('Ticket', new mongoose.Schema({
+  numeroTicket: String,
+  conversationId: mongoose.Schema.Types.ObjectId,
+  phoneNumber: String,
+  nombreCliente: String,
+  placa: String,
+  cedula: String,
+  descripcion: String,
+  contadorTickets: Number,
+  estado: String,
+  prioridad: String,
+  asignadoA: mongoose.Schema.Types.ObjectId,
+  lockedBy: mongoose.Schema.Types.ObjectId,
+  lockedAt: Date,
+  fechaCreacion: Date,
+  fechaActualizacion: Date,
+  fechaCierre: Date,
+  fechaFinalizacion: Date,
+  tiempoResolucion: Number,
+  cerradoPor: mongoose.Schema.Types.ObjectId,
+  notas: Array,
+  archivosAdjuntos: Array
+}), 'tickets');
 
-// Ruta de prueba
-app.get('/', (req, res) => {
-  res.json({ message: 'WhatsApp Chatbot API funcionando correctamente' });
-});
-
-// Puerto
-const PORT = process.env.PORT || 5000;
-
-// Iniciar servidor después de sincronizar DB
-syncDatabase()
-  .then(() => {
-    app.listen(PORT, () => {
-      console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
+async function migrateData() {
+  try {
+    console.log('🔄 Iniciando migración de MongoDB a MySQL...\n');
+    
+    // Conectar a MongoDB
+    await mongoose.connect(process.env.MONGODB_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true
     });
-  })
-  .catch(err => {
-    console.error('❌ Error al iniciar servidor:', err);
-    process.exit(1);
-  });
+    console.log('✅ Conectado a MongoDB');
+    
+    // Conectar a MySQL y crear tablas
+    await sequelize.authenticate();
+    console.log('✅ Conectado a MySQL');
+    
+    await sequelize.sync({ force: true }); // Recrear tablas
+    console.log('✅ Tablas MySQL creadas\n');
+    
+    // Mapa para conversión de ObjectIds
+    const userIdMap = new Map();
+    const conversationIdMap = new Map();
+    
+    // 1. Migrar Usuarios
+    console.log('📊 Migrando usuarios...');
+    const usersMongo = await UserMongo.find();
+    for (const userDoc of usersMongo) {
+      const userSQL = await User.create({
+        username: userDoc.username,
+        email: userDoc.email,
+        password: userDoc.password, // Ya está hasheado
+        role: userDoc.role || 'agent',
+        createdAt: userDoc.createdAt
+      }, {
+        hooks: false // Desactivar hooks para no re-hashear
+      });
+      userIdMap.set(userDoc._id.toString(), userSQL.id);
+    }
+    console.log(`✅ ${usersMongo.length} usuarios migrados\n`);
+    
+    // 2. Migrar Conversaciones
+    console.log('📊 Migrando conversaciones...');
+    const conversationsMongo = await ConversationMongo.find();
+    for (const convDoc of conversationsMongo) {
+      const assignedAgentId = convDoc.assignedAgent 
+        ? userIdMap.get(convDoc.assignedAgent.toString()) 
+        : null;
+      
+      const convSQL = await Conversation.create({
+        phoneNumber: convDoc.phoneNumber,
+        name: convDoc.name || '',
+        placa: convDoc.placa || '',
+        cedula: convDoc.cedula || '',
+        estado: convDoc.estado || 'INICIO',
+        lastMessage: convDoc.lastMessage || '',
+        lastMessageTime: convDoc.lastMessageTime || new Date(),
+        unreadCount: convDoc.unreadCount || 0,
+        status: convDoc.status || 'active',
+        assignedAgentId,
+        posicionEnCola: convDoc.posicionEnCola,
+        timestampEnCola: convDoc.timestampEnCola,
+        createdAt: convDoc.createdAt
+      });
+      
+      conversationIdMap.set(convDoc._id.toString(), convSQL.id);
+      
+      // Migrar mensajes embebidos en conversation
+      if (convDoc.messages && convDoc.messages.length > 0) {
+        const messagesToCreate = convDoc.messages.map(msg => ({
+          conversationId: convSQL.id,
+          from: msg.from,
+          to: msg.to,
+          message: msg.message,
+          type: msg.type || 'text',
+          direction: msg.direction,
+          status: msg.status || 'sent',
+          whatsappMessageId: msg.whatsappMessageId,
+          mediaId: msg.mediaId,
+          mediaUrl: msg.mediaUrl,
+          caption: msg.caption,
+          timestamp: msg.timestamp || new Date()
+        }));
+        
+        await Message.bulkCreate(messagesToCreate);
+      }
+    }
+    console.log(`✅ ${conversationsMongo.length} conversaciones migradas\n`);
+    
+    // 3. Migrar Mensajes (tabla separada)
+    console.log('📊 Migrando mensajes (tabla messages)...');
+    const messagesMongo = await MessageMongo.find();
+    let migratedMessages = 0;
+    
+    for (const msgDoc of messagesMongo) {
+      // conversationId en Message puede ser String del ObjectId
+      const conversationId = conversationIdMap.get(msgDoc.conversationId);
+      
+      if (conversationId) {
+        await Message.create({
+          conversationId,
+          from: msgDoc.from,
+          to: msgDoc.to,
+          message: msgDoc.message,
+          type: msgDoc.type || 'text',
+          direction: msgDoc.direction,
+          status: msgDoc.status || 'sent',
+          whatsappMessageId: msgDoc.whatsappMessageId,
+          mediaId: msgDoc.mediaId,
+          mediaUrl: msgDoc.mediaUrl,
+          caption: msgDoc.caption,
+          timestamp: msgDoc.timestamp || new Date()
+        });
+        migratedMessages++;
+      }
+    }
+    console.log(`✅ ${migratedMessages} mensajes migrados\n`);
+    
+    // 4. Migrar Tickets
+    console.log('📊 Migrando tickets...');
+    const ticketsMongo = await TicketMongo.find();
+    for (const ticketDoc of ticketsMongo) {
+      const conversationId = conversationIdMap.get(ticketDoc.conversationId.toString());
+      const asignadoA = ticketDoc.asignadoA 
+        ? userIdMap.get(ticketDoc.asignadoA.toString()) 
+        : null;
+      const lockedBy = ticketDoc.lockedBy 
+        ? userIdMap.get(ticketDoc.lockedBy.toString()) 
+        : null;
+      const cerradoPor = ticketDoc.cerradoPor 
+        ? userIdMap.get(ticketDoc.cerradoPor.toString()) 
+        : null;
+      
+      if (conversationId) {
+        await Ticket.create({
+          numeroTicket: ticketDoc.numeroTicket,
+          conversationId,
+          phoneNumber: ticketDoc.phoneNumber,
+          nombreCliente: ticketDoc.nombreCliente,
+          placa: ticketDoc.placa || '',
+          cedula: ticketDoc.cedula || '',
+          descripcion: ticketDoc.descripcion || 'Solicitud de atención',
+          contadorTickets: ticketDoc.contadorTickets || 1,
+          estado: ticketDoc.estado || 'PENDIENTE',
+          prioridad: ticketDoc.prioridad || 'MEDIA',
+          asignadoA,
+          lockedBy,
+          lockedAt: ticketDoc.lockedAt,
+          fechaCierre: ticketDoc.fechaCierre,
+          fechaFinalizacion: ticketDoc.fechaFinalizacion,
+          tiempoResolucion: ticketDoc.tiempoResolucion,
+          cerradoPor,
+          notas: JSON.stringify(ticketDoc.notas || []),
+          createdAt: ticketDoc.fechaCreacion,
+          updatedAt: ticketDoc.fechaActualizacion
+        }, {
+          hooks: false // Desactivar hooks para preservar datos originales
+        });
+      }
+    }
+    console.log(`✅ ${ticketsMongo.length} tickets migrados\n`);
+    
+    console.log('✅ Migración completada exitosamente!');
+    console.log('\n📊 Resumen:');
+    console.log(`   - Usuarios: ${usersMongo.length}`);
+    console.log(`   - Conversaciones: ${conversationsMongo.length}`);
+    console.log(`   - Mensajes: ${migratedMessages}`);
+    console.log(`   - Tickets: ${ticketsMongo.length}`);
+    
+  } catch (error) {
+    console.error('❌ Error durante la migración:', error);
+    throw error;
+  } finally {
+    await mongoose.disconnect();
+    await sequelize.close();
+    console.log('\n🔌 Conexiones cerradas');
+  }
+}
+
+// Ejecutar migración
+if (require.main === module) {
+  migrateData()
+    .then(() => {
+      console.log('\n✅ Proceso de migración finalizado');
+      process.exit(0);
+    })
+    .catch(err => {
+      console.error('\n❌ Error fatal:', err);
+      process.exit(1);
+    });
+}
+
+module.exports = migrateData;
 </file>
 
 <file path="services/whatsappService.js">
@@ -12368,539 +11990,333 @@ img {
 }
 </file>
 
-<file path="models/User.js">
+<file path="middleware/auth.js">
+const jwt = require('jsonwebtoken');
+const { User } = require('../models');
+
+module.exports = async (req, res, next) => {
+  try {
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+    if (!token) return res.status(401).json({ error: 'No hay token' });
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    // Buscar usuario
+    const user = await User.findByPk(decoded.userId, {
+      attributes: { exclude: ['password'] }
+    });
+
+    if (!user) {
+      return res.status(401).json({ error: 'Token inválido' });
+    }
+
+    // Agregar usuario al request
+    req.user = user;
+    next();
+  } catch (error) {
+    res.status(401).json({ error: 'Token inválido' });
+  }
+};
+</file>
+
+<file path="models/Conversation.js">
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
-const bcrypt = require('bcryptjs');
 
-const User = sequelize.define('User', {
+const Conversation = sequelize.define('Conversation', {
   id: {
     type: DataTypes.INTEGER,
     autoIncrement: true,
     primaryKey: true
   },
-  username: {
-    type: DataTypes.STRING(100),
+  phoneNumber: {
+    type: DataTypes.STRING(50),
     allowNull: false,
-    unique: {
-      msg: 'El nombre de usuario ya está en uso'
-    },
-    validate: {
-      notEmpty: {
-        msg: 'El nombre de usuario no puede estar vacío'
-      },
-      len: {
-        args: [3, 50],
-        msg: 'El nombre de usuario debe tener entre 3 y 50 caracteres'
-      },
-      is: {
-        args: /^[a-zA-Z0-9_-]+$/,
-        msg: 'El nombre de usuario solo puede contener letras, números, guiones y guiones bajos'
-      },
-      // Validación personalizada contra inyecciones
-      noSQLInjection(value) {
-        const dangerousPatterns = [
-          /(%27)|(')|(--)|(% 23)|(#)/i,
-          /union.*select/i,
-          /insert.*into/i,
-          /delete.*from/i,
-          /drop.*table/i,
-          /update.*set/i,
-          /<script/i,
-          /<iframe/i
-        ];
-        
-        for (const pattern of dangerousPatterns) {
-          if (pattern.test(value)) {
-            throw new Error('El nombre de usuario contiene caracteres no permitidos');
-          }
-        }
-      }
-    }
+    unique: true
   },
-  email: {
+  name: {
     type: DataTypes.STRING(255),
-    allowNull: false,
-    unique: {
-      msg: 'El email ya está en uso'
-    },
-    validate: {
-      notEmpty: {
-        msg: 'El email no puede estar vacío'
-      },
-      isEmail: {
-        msg: 'Debe ser un email válido'
-      },
-      len: {
-        args: [5, 255],
-        msg: 'El email debe tener entre 5 y 255 caracteres'
-      },
-      // Validación personalizada contra inyecciones
-      noSQLInjection(value) {
-        const dangerousPatterns = [
-          /(%27)|(')|(--)|(%23)|(#)/i,
-          /union.*select/i,
-          /insert.*into/i,
-          /delete.*from/i,
-          /drop.*table/i,
-          /update.*set/i,
-          /<script/i,
-          /<iframe/i
-        ];
-        
-        for (const pattern of dangerousPatterns) {
-          if (pattern.test(value)) {
-            throw new Error('El email contiene caracteres no permitidos');
-          }
-        }
-      }
+    defaultValue: ''
+  },
+  placa: {
+    type: DataTypes.STRING(50),
+    defaultValue: ''
+  },
+  cedula: {
+    type: DataTypes.STRING(50),
+    defaultValue: ''
+  },
+  estado: {
+    type: DataTypes.ENUM('INICIO', 'ESPERANDO_NOMBRE', 'ESPERANDO_PLACA', 'ESPERANDO_CEDULA', 'EN_COLA', 'ASIGNADO'),
+    defaultValue: 'INICIO'
+  },
+  lastMessage: {
+    type: DataTypes.TEXT,
+    defaultValue: ''
+  },
+  lastMessageTime: {
+    type: DataTypes.DATE,
+    defaultValue: DataTypes.NOW
+  },
+  unreadCount: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0
+  },
+  status: {
+    type: DataTypes.ENUM('active', 'archived', 'blocked'),
+    defaultValue: 'active'
+  },
+  assignedAgentId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'users',
+      key: 'id'
     }
   },
-  password: {
-    type: DataTypes.STRING(255),
-    allowNull: false,
-    validate: {
-      notEmpty: {
-        msg: 'La contraseña no puede estar vacía'
-      },
-      len: {
-        args: [6, 128],
-        msg: 'La contraseña debe tener entre 6 y 128 caracteres'
-      }
-    }
+  posicionEnCola: {
+    type: DataTypes.INTEGER,
+    allowNull: true
   },
-  role: {
-    type: DataTypes.ENUM('admin', 'agent'),
-    defaultValue: 'agent',
-    validate: {
-      isIn: {
-        args: [['admin', 'agent']],
-        msg: 'El rol debe ser admin o agent'
-      }
-    }
+  timestampEnCola: {
+    type: DataTypes.DATE,
+    allowNull: true
   }
 }, {
-  tableName: 'users',
+  tableName: 'conversations',
   timestamps: true,
+  indexes: [
+    {
+      fields: ['estado', 'timestampEnCola']
+    }
+  ]
+});
+
+module.exports = Conversation;
+</file>
+
+<file path="models/Message.js">
+const { DataTypes } = require('sequelize');
+const sequelize = require('../config/database');
+
+const Message = sequelize.define('Message', {
+  id: {
+    type: DataTypes.INTEGER,
+    autoIncrement: true,
+    primaryKey: true
+  },
+  conversationId: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    references: {
+      model: 'conversations',
+      key: 'id'
+    }
+  },
+  from: {
+    type: DataTypes.STRING(50),
+    allowNull: false
+  },
+  to: {
+    type: DataTypes.STRING(50),
+    allowNull: false
+  },
+  message: {
+    type: DataTypes.TEXT,
+    allowNull: false
+  },
+  type: {
+    type: DataTypes.ENUM('text', 'image', 'video', 'audio', 'document'),
+    defaultValue: 'text'
+  },
+  direction: {
+    type: DataTypes.ENUM('inbound', 'outbound'),
+    allowNull: false
+  },
+  status: {
+    type: DataTypes.ENUM('sent', 'delivered', 'read', 'failed'),
+    defaultValue: 'sent'
+  },
+  whatsappMessageId: {
+    type: DataTypes.STRING(255),
+    unique: true,
+    allowNull: true
+  },
+  mediaId: {
+    type: DataTypes.STRING(255)
+  },
+  mediaUrl: {
+    type: DataTypes.TEXT
+  },
+  caption: {
+    type: DataTypes.TEXT
+  },
+  timestamp: {
+    type: DataTypes.DATE,
+    defaultValue: DataTypes.NOW
+  }
+}, {
+  tableName: 'messages',
+  timestamps: true,
+  indexes: [
+    {
+      fields: ['conversationId', 'timestamp']
+    }
+  ]
+});
+
+module.exports = Message;
+</file>
+
+<file path="models/Ticket.js">
+const { DataTypes } = require('sequelize');
+const sequelize = require('../config/database');
+
+const Ticket = sequelize.define('Ticket', {
+  id: {
+    type: DataTypes.INTEGER,
+    autoIncrement: true,
+    primaryKey: true
+  },
+  numeroTicket: {
+    type: DataTypes.STRING(50),
+    unique: true,
+    allowNull: false
+  },
+  conversationId: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    references: {
+      model: 'conversations',
+      key: 'id'
+    }
+  },
+  phoneNumber: {
+    type: DataTypes.STRING(50),
+    allowNull: false
+  },
+  nombreCliente: {
+    type: DataTypes.STRING(255),
+    allowNull: false
+  },
+  placa: {
+    type: DataTypes.STRING(50),
+    defaultValue: ''
+  },
+  cedula: {
+    type: DataTypes.STRING(50),
+    defaultValue: ''
+  },
+  descripcion: {
+    type: DataTypes.TEXT,
+    defaultValue: 'Solicitud de atención'
+  },
+  contadorTickets: {
+    type: DataTypes.INTEGER,
+    defaultValue: 1
+  },
+  estado: {
+    type: DataTypes.ENUM('PENDIENTE', 'ASIGNADO', 'CERRADO'),
+    defaultValue: 'PENDIENTE'
+  },
+  prioridad: {
+    type: DataTypes.ENUM('BAJA', 'MEDIA', 'ALTA', 'URGENTE'),
+    defaultValue: 'MEDIA'
+  },
+  asignadoA: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'users',
+      key: 'id'
+    }
+  },
+  lockedBy: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'users',
+      key: 'id'
+    }
+  },
+  lockedAt: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
+  fechaAsignacion: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
+  fechaCierre: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
+  fechaFinalizacion: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
+  tiempoResolucion: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    comment: 'Tiempo en minutos'
+  },
+  cerradoPor: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'users',
+      key: 'id'
+    }
+  },
+  notas: {
+    type: DataTypes.TEXT,
+    defaultValue: ''
+  }
+}, {
+  tableName: 'tickets',
+  timestamps: true,
+  indexes: [
+    {
+      fields: ['estado', 'createdAt']
+    },
+    {
+      fields: ['asignadoA', 'estado']
+    },
+    {
+      fields: ['phoneNumber']
+    }
+  ],
   hooks: {
-    beforeCreate: async (user) => {
-      if (user.password) {
-        const salt = await bcrypt.genSalt(10);
-        user.password = await bcrypt.hash(user.password, salt);
+    beforeCreate: async (ticket) => {
+      // Generar número de ticket
+      if (!ticket.numeroTicket) {
+        const count = await Ticket.count();
+        const fecha = new Date();
+        const año = fecha.getFullYear();
+        const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+        ticket.numeroTicket = `TKT-${año}${mes}-${String(count + 1).padStart(5, '0')}`;
+      }
+      
+      // Contar tickets del usuario
+      if (!ticket.contadorTickets) {
+        const userTickets = await Ticket.count({
+          where: { phoneNumber: ticket.phoneNumber }
+        });
+        ticket.contadorTickets = userTickets + 1;
       }
     },
-    beforeUpdate: async (user) => {
-      if (user.changed('password')) {
-        const salt = await bcrypt.genSalt(10);
-        user.password = await bcrypt.hash(user.password, salt);
+    beforeUpdate: async (ticket) => {
+      // Calcular tiempo de resolución al cerrar
+      if (ticket.changed('estado') && ticket.estado === 'CERRADO' && !ticket.tiempoResolucion) {
+        ticket.fechaCierre = new Date();
+        ticket.fechaFinalizacion = new Date();
+        const tiempoMs = ticket.fechaCierre - ticket.createdAt;
+        ticket.tiempoResolucion = Math.round(tiempoMs / (1000 * 60));
       }
     }
   }
 });
 
-// Método para comparar contraseñas
-User.prototype.comparePassword = async function(candidatePassword) {
-  return await bcrypt.compare(candidatePassword, this.password);
-};
-
-module.exports = User;
-</file>
-
-<file path="package.json">
-{
-  "name": "whatsapp-chatbot",
-  "version": "1.0.0",
-  "description": "WhatsApp Chatbot con Node.js, Express, MongoDB y React",
-  "main": "server.js",
-  "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js",
-    "client": "cd client && npm start",
-    "install-client": "cd client && npm install",
-    "build": "cd client && npm run build",
-    "seed": "node seed.js"
-  },
-  "keywords": [
-    "whatsapp",
-    "chatbot",
-    "nodejs",
-    "express",
-    "mongodb"
-  ],
-  "author": "",
-  "license": "MIT",
-  "dependencies": {
-    "axios": "^1.6.2",
-    "bcryptjs": "^2.4.3",
-    "body-parser": "^1.20.2",
-    "cors": "^2.8.5",
-    "dotenv": "^16.3.1",
-    "express": "^4.18.2",
-    "express-validator": "^7.3.1",
-    "jsonwebtoken": "^9.0.2",
-    "mysql2": "^3.16.3",
-    "sequelize": "^6.37.7",
-    "validator": "^13.15.26"
-  },
-  "devDependencies": {
-    "nodemon": "^3.0.2"
-  }
-}
-</file>
-
-<file path="routes/auth.js">
-const express = require('express');
-const router = express.Router();
-const jwt = require('jsonwebtoken');
-const { User } = require('../models');
-const { Op } = require('sequelize');
-const auth = require('../middleware/auth');
-const { body, validationResult } = require('express-validator');
-const {
-  sanitizeText,
-  sanitizeEmail,
-  isValidEmail,
-  isValidUsername,
-  validatePassword,
-  limitLength,
-  removeSQLPatterns
-} = require('../utils/sanitizer');
-
-/**
- * Registro de usuario
- */
-router.post('/register', [
-  // Validaciones con express-validator
-  body('username')
-    .trim()
-    .notEmpty().withMessage('El nombre de usuario es requerido')
-    .isLength({ min: 3, max: 50 }).withMessage('El nombre de usuario debe tener entre 3 y 50 caracteres')
-    .matches(/^[a-zA-Z0-9_-]+$/).withMessage('El nombre de usuario solo puede contener letras, números, guiones y guiones bajos'),
-  body('email')
-    .trim()
-    .notEmpty().withMessage('El email es requerido')
-    .isEmail().withMessage('Formato de email inválido')
-    .normalizeEmail(),
-  body('password')
-    .notEmpty().withMessage('La contraseña es requerida')
-    .isLength({ min: 6, max: 128 }).withMessage('La contraseña debe tener entre 6 y 128 caracteres')
-], async (req, res) => {
-  try {
-    // Verificar errores de validación
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ error: errors.array()[0].msg });
-    }
-
-    let { username, email, password, role } = req.body;
-
-    // Sanitizar inputs
-    username = sanitizeText(removeSQLPatterns(limitLength(username, 50)));
-    email = sanitizeEmail(removeSQLPatterns(limitLength(email, 255)));
-    
-    // Validaciones adicionales
-    if (!isValidUsername(username)) {
-      return res.status(400).json({ error: 'Nombre de usuario inválido' });
-    }
-
-    if (!isValidEmail(email)) {
-      return res.status(400).json({ error: 'Email inválido' });
-    }
-
-    const passwordValidation = validatePassword(password);
-    if (!passwordValidation.valid) {
-      return res.status(400).json({ error: passwordValidation.message });
-    }
-
-    // Sanitizar y validar role si existe
-    if (role) {
-      role = sanitizeText(role);
-      if (!['admin', 'agent'].includes(role)) {
-        role = 'agent'; // Valor por defecto seguro
-      }
-    }
-
-    // Verificar si el usuario ya existe (usando consultas parametrizadas de Sequelize)
-    const existingUser = await User.findOne({
-      where: {
-        [Op.or]: [
-          { email: email },
-          { username: username }
-        ]
-      }
-    });
-
-    if (existingUser) {
-      return res.status(400).json({ error: 'El usuario o email ya existe' });
-    }
-
-    // Crear nuevo usuario (Sequelize maneja la sanitización)
-    const user = await User.create({
-      username,
-      email,
-      password,
-      role: role || 'agent'
-    });
-
-    // Generar token
-    const token = jwt.sign(
-      { userId: user.id },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-
-    res.status(201).json({
-      token,
-      user: {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        role: user.role
-      }
-    });
-  } catch (error) {
-    console.error('Error en registro:', error);
-    res.status(500).json({ error: 'Error al registrar usuario' });
-  }
-});
-
-/**
- * Login de usuario
- */
-router.post('/login', [
-  // Validaciones con express-validator
-  body('email')
-    .trim()
-    .notEmpty().withMessage('El email es requerido')
-    .isEmail().withMessage('Formato de email inválido')
-    .normalizeEmail(),
-  body('password')
-    .notEmpty().withMessage('La contraseña es requerida')
-    .isLength({ min: 6, max: 128 }).withMessage('Contraseña inválida')
-], async (req, res) => {
-  try {
-    // Verificar errores de validación
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ error: errors.array()[0].msg });
-    }
-
-    let { email, password } = req.body;
-
-    // Sanitizar inputs
-    email = sanitizeEmail(removeSQLPatterns(limitLength(email, 255)));
-    
-    // Validaciones adicionales
-    if (!isValidEmail(email)) {
-      return res.status(400).json({ error: 'Credenciales inválidas' });
-    }
-
-    if (!password || password.length < 6 || password.length > 128) {
-      return res.status(400).json({ error: 'Credenciales inválidas' });
-    }
-
-    // Buscar usuario (usando consultas parametrizadas de Sequelize)
-    const user = await User.findOne({ where: { email: email } });
-
-    if (!user) {
-      return res.status(400).json({ error: 'Credenciales inválidas' });
-    }
-
-    // Verificar contraseña
-    const isMatch = await user.comparePassword(password);
-
-    if (!isMatch) {
-      return res.status(400).json({ error: 'Credenciales inválidas' });
-    }
-
-    // Generar token
-    const token = jwt.sign(
-      { userId: user.id },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-
-    res.json({
-      token,
-      user: {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        role: user.role
-      }
-    });
-  } catch (error) {
-    console.error('Error en login:', error);
-    res.status(500).json({ error: 'Error al iniciar sesión' });
-  }
-});
-
-/**
- * Obtener perfil de usuario autenticado
- */
-router.get('/me', auth, async (req, res) => {
-  try {
-    res.json({
-      user: {
-        id: req.user.id,
-        username: req.user.username,
-        email: req.user.email,
-        role: req.user.role
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-/**
- * Obtener todos los agentes (solo admin)
- */
-router.get('/agents', auth, async (req, res) => {
-  try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Acceso denegado' });
-    }
-
-    const agents = await User.findAll({
-      attributes: { exclude: ['password'] }
-    });
-    res.json(agents);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-/**
- * Actualizar usuario (solo admin)
- */
-router.patch('/users/:id', [
-  auth,
-  // Validaciones opcionales
-  body('username').optional().trim()
-    .isLength({ min: 3, max: 50 }).withMessage('El nombre de usuario debe tener entre 3 y 50 caracteres')
-    .matches(/^[a-zA-Z0-9_-]+$/).withMessage('El nombre de usuario solo puede contener letras, números, guiones y guiones bajos'),
-  body('email').optional().trim()
-    .isEmail().withMessage('Formato de email inválido')
-    .normalizeEmail(),
-  body('password').optional()
-    .isLength({ min: 6, max: 128 }).withMessage('La contraseña debe tener entre 6 y 128 caracteres'),
-  body('role').optional()
-    .isIn(['admin', 'agent']).withMessage('Rol inválido')
-], async (req, res) => {
-  try {
-    // Verificar errores de validación
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ error: errors.array()[0].msg });
-    }
-
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Acceso denegado' });
-    }
-
-    // Sanitizar y validar ID
-    const userId = Number.parseInt(removeSQLPatterns(req.params.id), 10);
-    if (Number.isNaN(userId)) {
-      return res.status(400).json({ error: 'ID de usuario inválido' });
-    }
-
-    const user = await User.findByPk(userId);
-    if (!user) {
-      return res.status(404).json({ error: 'Usuario no encontrado' });
-    }
-
-    // Mapa de validadores/actualizadores para reducir complejidad
-    const fieldHandlers = {
-      username: (value) => {
-        const v = sanitizeText(removeSQLPatterns(limitLength(value, 50)));
-        if (!isValidUsername(v)) return 'Nombre de usuario inválido';
-        user.username = v;
-        return null;
-      },
-      email: (value) => {
-        const v = sanitizeEmail(removeSQLPatterns(limitLength(value, 255)));
-        if (!isValidEmail(v)) return 'Email inválido';
-        user.email = v;
-        return null;
-      },
-      password: (value) => {
-        const pv = validatePassword(value);
-        if (!pv.valid) return pv.message;
-        user.password = value;
-        return null;
-      },
-      role: (value) => {
-        const v = sanitizeText(value);
-        if (!['admin', 'agent'].includes(v)) return 'Rol inválido';
-        user.role = v;
-        return null;
-      }
-    };
-
-    // Iterar campos y aplicar validadores si vienen en la petición
-    for (const field of ['username', 'email', 'password', 'role']) {
-      if (Object.hasOwn(req.body, field) && req.body[field] !== undefined && req.body[field] !== null && req.body[field] !== '') {
-        const errMsg = fieldHandlers[field](req.body[field]);
-        if (errMsg) {
-          return res.status(400).json({ error: errMsg });
-        }
-      }
-    }
-
-    await user.save();
-
-    res.json({
-      message: 'Usuario actualizado correctamente',
-      user: {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        role: user.role
-      }
-    });
-  } catch (error) {
-    console.error('Error al actualizar usuario:', error);
-    res.status(500).json({ error: 'Error al actualizar usuario' });
-  }
-});
-
-/**
- * Eliminar usuario (solo admin)
- */
-router.delete('/users/:id', auth, async (req, res) => {
-  try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Acceso denegado' });
-    }
-
-    // Sanitizar y validar ID
-    const userId = Number.parseInt(removeSQLPatterns(req.params.id), 10);
-    if (Number.isNaN(userId)) {
-      return res.status(400).json({ error: 'ID de usuario inválido' });
-    }
-
-    // No permitir que el admin se elimine a sí mismo
-    if (userId === req.user.id) {
-      return res.status(400).json({ error: 'No puedes eliminar tu propia cuenta' });
-    }
-
-    const user = await User.findByPk(userId);
-
-    if (!user) {
-      return res.status(404).json({ error: 'Usuario no encontrado' });
-    }
-
-    await user.destroy();
-
-    res.json({ message: 'Usuario eliminado correctamente' });
-  } catch (error) {
-    console.error('Error al eliminar usuario:', error);
-    res.status(500).json({ error: 'Error al eliminar usuario' });
-  }
-});
-
-module.exports = router;
+module.exports = Ticket;
 </file>
 
 <file path="routes/webhook.js">
@@ -13418,6 +12834,574 @@ async function handleInicioDefault(conversation) {
   await conversation.save();
   return `¡Hola! 👋 ¡Bienvenido!\n\n📝 Para poder ayudarte, necesito que me proporciones algunos datos.\n\nPor favor, ingresa la *PLACA* de tu vehículo\n(Formato: ABC123):`;
 }
+
+module.exports = router;
+</file>
+
+<file path="server.js">
+const express = require('express');
+const cors = require('cors');
+const bodyParser = require('body-parser');
+const dotenv = require('dotenv');
+const { syncDatabase } = require('./models');
+
+dotenv.config();
+
+const app = express();
+app.use(cors());
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+
+// Rutas
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/webhook', require('./routes/webhook'));
+app.use('/api/messages', require('./routes/messages'));
+app.use('/api/cola', require('./routes/cola'));
+app.use('/api/tickets', require('./routes/tickets'));
+
+app.get('/', (req, res) => {
+  res.json({ message: 'WhatsApp Chatbot API funcionando correctamente' });
+});
+
+const PORT = process.env.PORT || 5000;
+
+// Iniciar servidor después de sincronizar DB
+syncDatabase()
+  .then(() => {
+    // Crear el servidor y guardar la referencia
+    const server = app.listen(PORT, () => {
+      console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
+    });
+    server.maxHeadersSize = 65536; // 64 KB
+  })
+  .catch(err => {
+    console.error('❌ Error al iniciar servidor:', err);
+    process.exit(1);
+  });
+</file>
+
+<file path="models/User.js">
+const { DataTypes } = require('sequelize');
+const sequelize = require('../config/database');
+const bcrypt = require('bcryptjs');
+
+const User = sequelize.define('User', {
+  id: {
+    type: DataTypes.INTEGER,
+    autoIncrement: true,
+    primaryKey: true
+  },
+  username: {
+    type: DataTypes.STRING(100),
+    allowNull: false,
+    unique: {
+      msg: 'El nombre de usuario ya está en uso'
+    },
+    validate: {
+      notEmpty: {
+        msg: 'El nombre de usuario no puede estar vacío'
+      },
+      len: {
+        args: [3, 50],
+        msg: 'El nombre de usuario debe tener entre 3 y 50 caracteres'
+      },
+      is: {
+        args: /^[a-zA-Z0-9_-]+$/,
+        msg: 'El nombre de usuario solo puede contener letras, números, guiones y guiones bajos'
+      },
+      // Validación personalizada contra inyecciones
+      noSQLInjection(value) {
+        const dangerousPatterns = [
+          /(%27)|(')|(--)|(% 23)|(#)/i,
+          /union.*select/i,
+          /insert.*into/i,
+          /delete.*from/i,
+          /drop.*table/i,
+          /update.*set/i,
+          /<script/i,
+          /<iframe/i
+        ];
+        
+        for (const pattern of dangerousPatterns) {
+          if (pattern.test(value)) {
+            throw new Error('El nombre de usuario contiene caracteres no permitidos');
+          }
+        }
+      }
+    }
+  },
+  email: {
+    type: DataTypes.STRING(255),
+    allowNull: false,
+    unique: {
+      msg: 'El email ya está en uso'
+    },
+    validate: {
+      notEmpty: {
+        msg: 'El email no puede estar vacío'
+      },
+      isEmail: {
+        msg: 'Debe ser un email válido'
+      },
+      len: {
+        args: [5, 255],
+        msg: 'El email debe tener entre 5 y 255 caracteres'
+      },
+      // Validación personalizada contra inyecciones
+      noSQLInjection(value) {
+        const dangerousPatterns = [
+          /(%27)|(')|(--)|(%23)|(#)/i,
+          /union.*select/i,
+          /insert.*into/i,
+          /delete.*from/i,
+          /drop.*table/i,
+          /update.*set/i,
+          /<script/i,
+          /<iframe/i
+        ];
+        
+        for (const pattern of dangerousPatterns) {
+          if (pattern.test(value)) {
+            throw new Error('El email contiene caracteres no permitidos');
+          }
+        }
+      }
+    }
+  },
+  password: {
+    type: DataTypes.STRING(255),
+    allowNull: false,
+    validate: {
+      notEmpty: {
+        msg: 'La contraseña no puede estar vacía'
+      },
+      len: {
+        args: [6, 128],
+        msg: 'La contraseña debe tener entre 6 y 128 caracteres'
+      }
+    }
+  },
+  role: {
+    type: DataTypes.ENUM('admin', 'agent'),
+    defaultValue: 'agent',
+    validate: {
+      isIn: {
+        args: [['admin', 'agent']],
+        msg: 'El rol debe ser admin o agent'
+      }
+    }
+  }
+}, {
+  tableName: 'users',
+  timestamps: true,
+  hooks: {
+    beforeCreate: async (user) => {
+      if (user.password) {
+        const salt = await bcrypt.genSalt(10);
+        user.password = await bcrypt.hash(user.password, salt);
+      }
+    },
+    beforeUpdate: async (user) => {
+      if (user.changed('password')) {
+        const salt = await bcrypt.genSalt(10);
+        user.password = await bcrypt.hash(user.password, salt);
+      }
+    }
+  }
+});
+
+// Método para comparar contraseñas
+User.prototype.comparePassword = async function(candidatePassword) {
+  return await bcrypt.compare(candidatePassword, this.password);
+};
+
+module.exports = User;
+</file>
+
+<file path="package.json">
+{
+  "name": "whatsapp-chatbot",
+  "version": "1.0.0",
+  "description": "WhatsApp Chatbot con Node.js, Express, MongoDB y React",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "client": "cd client && npm start",
+    "install-client": "cd client && npm install",
+    "build": "cd client && npm run build",
+    "seed": "node seed.js"
+  },
+  "keywords": [
+    "whatsapp",
+    "chatbot",
+    "nodejs",
+    "express",
+    "mongodb"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.2",
+    "bcryptjs": "^2.4.3",
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-validator": "^7.3.1",
+    "jsonwebtoken": "^9.0.2",
+    "mysql2": "^3.16.3",
+    "sequelize": "^6.37.7",
+    "validator": "^13.15.26"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}
+</file>
+
+<file path="routes/auth.js">
+const express = require('express');
+const router = express.Router();
+const jwt = require('jsonwebtoken');
+const { User } = require('../models');
+const { Op } = require('sequelize');
+const auth = require('../middleware/auth');
+const { body, validationResult } = require('express-validator');
+const {
+  sanitizeText,
+  sanitizeEmail,
+  isValidEmail,
+  isValidUsername,
+  validatePassword,
+  limitLength,
+  removeSQLPatterns
+} = require('../utils/sanitizer');
+
+/**
+ * Registro de usuario
+ */
+router.post('/register', [
+  // Validaciones con express-validator
+  body('username')
+    .trim()
+    .notEmpty().withMessage('El nombre de usuario es requerido')
+    .isLength({ min: 3, max: 50 }).withMessage('El nombre de usuario debe tener entre 3 y 50 caracteres')
+    .matches(/^[a-zA-Z0-9_-]+$/).withMessage('El nombre de usuario solo puede contener letras, números, guiones y guiones bajos'),
+  body('email')
+    .trim()
+    .notEmpty().withMessage('El email es requerido')
+    .isEmail().withMessage('Formato de email inválido')
+    .normalizeEmail(),
+  body('password')
+    .notEmpty().withMessage('La contraseña es requerida')
+    .isLength({ min: 6, max: 128 }).withMessage('La contraseña debe tener entre 6 y 128 caracteres')
+], async (req, res) => {
+  try {
+    // Verificar errores de validación
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ error: errors.array()[0].msg });
+    }
+
+    let { username, email, password, role } = req.body;
+
+    // Sanitizar inputs
+    username = sanitizeText(removeSQLPatterns(limitLength(username, 50)));
+    email = sanitizeEmail(removeSQLPatterns(limitLength(email, 255)));
+    
+    // Validaciones adicionales
+    if (!isValidUsername(username)) {
+      return res.status(400).json({ error: 'Nombre de usuario inválido' });
+    }
+
+    if (!isValidEmail(email)) {
+      return res.status(400).json({ error: 'Email inválido' });
+    }
+
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.valid) {
+      return res.status(400).json({ error: passwordValidation.message });
+    }
+
+    // Sanitizar y validar role si existe
+    if (role) {
+      role = sanitizeText(role);
+      if (!['admin', 'agent'].includes(role)) {
+        role = 'agent'; // Valor por defecto seguro
+      }
+    }
+
+    // Verificar si el usuario ya existe (usando consultas parametrizadas de Sequelize)
+    const existingUser = await User.findOne({
+      where: {
+        [Op.or]: [
+          { email: email },
+          { username: username }
+        ]
+      }
+    });
+
+    if (existingUser) {
+      return res.status(400).json({ error: 'El usuario o email ya existe' });
+    }
+
+    // Crear nuevo usuario (Sequelize maneja la sanitización)
+    const user = await User.create({
+      username,
+      email,
+      password,
+      role: role || 'agent'
+    });
+
+    // Generar token
+    const token = jwt.sign(
+      { userId: user.id },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    res.status(201).json({
+      token,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        role: user.role
+      }
+    });
+  } catch (error) {
+    console.error('Error en registro:', error);
+    res.status(500).json({ error: 'Error al registrar usuario' });
+  }
+});
+
+/**
+ * Login de usuario
+ */
+router.post('/login', [
+  // Validaciones con express-validator
+  body('email')
+    .trim()
+    .notEmpty().withMessage('El email es requerido')
+    .isEmail().withMessage('Formato de email inválido')
+    .normalizeEmail(),
+  body('password')
+    .notEmpty().withMessage('La contraseña es requerida')
+    .isLength({ min: 6, max: 128 }).withMessage('Contraseña inválida')
+], async (req, res) => {
+  try {
+    // Verificar errores de validación
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ error: errors.array()[0].msg });
+    }
+
+    let { email, password } = req.body;
+
+    // Sanitizar inputs
+    email = sanitizeEmail(removeSQLPatterns(limitLength(email, 255)));
+    
+    // Validaciones adicionales
+    if (!isValidEmail(email)) {
+      return res.status(400).json({ error: 'Credenciales inválidas' });
+    }
+
+    if (!password || password.length < 6 || password.length > 128) {
+      return res.status(400).json({ error: 'Credenciales inválidas' });
+    }
+
+    // Buscar usuario (usando consultas parametrizadas de Sequelize)
+    const user = await User.findOne({ where: { email: email } });
+
+    if (!user) {
+      return res.status(400).json({ error: 'Credenciales inválidas' });
+    }
+
+    // Verificar contraseña
+    const isMatch = await user.comparePassword(password);
+
+    if (!isMatch) {
+      return res.status(400).json({ error: 'Credenciales inválidas' });
+    }
+
+    // Generar token
+    const token = jwt.sign(
+      { userId: user.id },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    res.json({
+      token,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        role: user.role
+      }
+    });
+  } catch (error) {
+    console.error('Error en login:', error);
+    res.status(500).json({ error: 'Error al iniciar sesión' });
+  }
+});
+
+router.get('/me', auth, async (req, res) => {
+  try {
+    res.json({
+      user: {
+        id: req.user.id,
+        username: req.user.username,
+        email: req.user.email,
+        role: req.user.role
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/agents', auth, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Acceso denegado' });
+    }
+
+    const agents = await User.findAll({
+      attributes: { exclude: ['password'] }
+    });
+    res.json(agents);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * Actualizar usuario (solo admin)
+ */
+router.patch('/users/:id', [
+  auth,
+  // Validaciones opcionales
+  body('username').optional().trim()
+    .isLength({ min: 3, max: 50 }).withMessage('El nombre de usuario debe tener entre 3 y 50 caracteres')
+    .matches(/^[a-zA-Z0-9_-]+$/).withMessage('El nombre de usuario solo puede contener letras, números, guiones y guiones bajos'),
+  body('email').optional().trim()
+    .isEmail().withMessage('Formato de email inválido')
+    .normalizeEmail(),
+  body('password').optional()
+    .isLength({ min: 6, max: 128 }).withMessage('La contraseña debe tener entre 6 y 128 caracteres'),
+  body('role').optional()
+    .isIn(['admin', 'agent']).withMessage('Rol inválido')
+], async (req, res) => {
+  try {
+    // Verificar errores de validación
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ error: errors.array()[0].msg });
+    }
+
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Acceso denegado' });
+    }
+
+    // Sanitizar y validar ID
+    const userId = Number.parseInt(removeSQLPatterns(req.params.id), 10);
+    if (Number.isNaN(userId)) {
+      return res.status(400).json({ error: 'ID de usuario inválido' });
+    }
+
+    const user = await User.findByPk(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    // Mapa de validadores/actualizadores para reducir complejidad
+    const fieldHandlers = {
+      username: (value) => {
+        const v = sanitizeText(removeSQLPatterns(limitLength(value, 50)));
+        if (!isValidUsername(v)) return 'Nombre de usuario inválido';
+        user.username = v;
+        return null;
+      },
+      email: (value) => {
+        const v = sanitizeEmail(removeSQLPatterns(limitLength(value, 255)));
+        if (!isValidEmail(v)) return 'Email inválido';
+        user.email = v;
+        return null;
+      },
+      password: (value) => {
+        const pv = validatePassword(value);
+        if (!pv.valid) return pv.message;
+        user.password = value;
+        return null;
+      },
+      role: (value) => {
+        const v = sanitizeText(value);
+        if (!['admin', 'agent'].includes(v)) return 'Rol inválido';
+        user.role = v;
+        return null;
+      }
+    };
+
+    // Iterar campos y aplicar validadores si vienen en la petición
+    for (const field of ['username', 'email', 'password', 'role']) {
+      if (Object.hasOwn(req.body, field) && req.body[field] !== undefined && req.body[field] !== null && req.body[field] !== '') {
+        const errMsg = fieldHandlers[field](req.body[field]);
+        if (errMsg) {
+          return res.status(400).json({ error: errMsg });
+        }
+      }
+    }
+
+    await user.save();
+
+    res.json({
+      message: 'Usuario actualizado correctamente',
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        role: user.role
+      }
+    });
+  } catch (error) {
+    console.error('Error al actualizar usuario:', error);
+    res.status(500).json({ error: 'Error al actualizar usuario' });
+  }
+});
+
+router.delete('/users/:id', auth, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Acceso denegado' });
+    }
+
+    // Sanitizar y validar ID
+    const userId = Number.parseInt(removeSQLPatterns(req.params.id), 10);
+    if (Number.isNaN(userId)) {
+      return res.status(400).json({ error: 'ID de usuario inválido' });
+    }
+
+    // No permitir que el admin se elimine a sí mismo
+    if (userId === req.user.id) {
+      return res.status(400).json({ error: 'No puedes eliminar tu propia cuenta' });
+    }
+
+    const user = await User.findByPk(userId);
+
+    if (!user) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    await user.destroy();
+
+    res.json({ message: 'Usuario eliminado correctamente' });
+  } catch (error) {
+    console.error('Error al eliminar usuario:', error);
+    res.status(500).json({ error: 'Error al eliminar usuario' });
+  }
+});
 
 module.exports = router;
 </file>
