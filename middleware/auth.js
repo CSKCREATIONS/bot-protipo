@@ -1,26 +1,13 @@
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+const { User } = require('../models');
 
 module.exports = async (req, res, next) => {
   try {
-    // Obtener token del header
     const token = req.header('Authorization')?.replace('Bearer ', '');
-
-    if (!token) {
-      return res.status(401).json({ error: 'No hay token, autorización denegada' });
-    }
-
-    // Verificar token
+    if (!token) return res.status(401).json({ error: 'No hay token' });
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    // Buscar usuario
-    const user = await User.findById(decoded.userId).select('-password');
-
-    if (!user) {
-      return res.status(401).json({ error: 'Token inválido' });
-    }
-
-    // Agregar usuario al request
+    const user = await User.findByPk(decoded.userId, { attributes: { exclude: ['password'] } });
+    if (!user) return res.status(401).json({ error: 'Token inválido' });
     req.user = user;
     next();
   } catch (error) {

@@ -1,51 +1,58 @@
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const sequelize = require('../config/database');
 const bcrypt = require('bcryptjs');
 
-const userSchema = new mongoose.Schema({
+const User = sequelize.define('User', {
+  id: {
+    type: DataTypes.INTEGER,
+    autoIncrement: true,
+    primaryKey: true
+  },
   username: {
-    type: String,
-    required: true,
+    type: DataTypes.STRING(100),
+    allowNull: false,
     unique: true,
-    trim: true
+    validate: {
+      len: [3, 50],
+      is: /^[a-zA-Z0-9_-]+$/
+    }
   },
   email: {
-    type: String,
-    required: true,
+    type: DataTypes.STRING(255),
+    allowNull: false,
     unique: true,
-    trim: true,
-    lowercase: true
+    validate: { isEmail: true }
   },
   password: {
-    type: String,
-    required: true
+    type: DataTypes.STRING(255),
+    allowNull: false,
+    validate: { len: [6, 128] }
   },
   role: {
-    type: String,
-    enum: ['admin', 'agent'],
-    default: 'agent'
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
+    type: DataTypes.ENUM('admin', 'agent'),
+    defaultValue: 'agent'
+  }
+}, {
+  tableName: 'users',
+  timestamps: true,
+  hooks: {
+    beforeCreate: async (user) => {
+      if (user.password) {
+        const salt = await bcrypt.genSalt(10);
+        user.password = await bcrypt.hash(user.password, salt);
+      }
+    },
+    beforeUpdate: async (user) => {
+      if (user.changed('password')) {
+        const salt = await bcrypt.genSalt(10);
+        user.password = await bcrypt.hash(user.password, salt);
+      }
+    }
   }
 });
 
-// Hash password antes de guardar
-userSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
-  
-  try {
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
-    next();
-  } catch (error) {
-    next(error);
-  }
-});
-
-// Método para comparar contraseñas
-userSchema.methods.comparePassword = async function(candidatePassword) {
+User.prototype.comparePassword = async function(candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
-module.exports = mongoose.model('User', userSchema);
+module.exports = User;  
