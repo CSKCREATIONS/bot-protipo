@@ -3,15 +3,10 @@ const { User } = require('../models');
 
 module.exports = async (req, res, next) => {
   try {
-    // Obtener token del header
     const token = req.header('Authorization')?.replace('Bearer ', '');
-
-    if (!token) {
-      return res.status(401).json({ error: 'No hay token, autorización denegada' });
-    }
-
-    // Verificar token
+    if (!token) return res.status(401).json({ error: 'No hay token' });
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+<<<<<<< HEAD
 
     // Buscar usuario
     const user = await User.findByPk(decoded.userId, {
@@ -23,6 +18,10 @@ module.exports = async (req, res, next) => {
     }
 
     // Agregar usuario al request
+=======
+    const user = await User.findByPk(decoded.userId, { attributes: { exclude: ['password'] } });
+    if (!user) return res.status(401).json({ error: 'Token inválido' });
+>>>>>>> a3d84ffc394df9cdb36df3aae0849c92dcd8cac3
     req.user = user;
     next();
   } catch (error) {

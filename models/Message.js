@@ -10,10 +10,14 @@ const Message = sequelize.define('Message', {
   conversationId: {
     type: DataTypes.INTEGER,
     allowNull: false,
+<<<<<<< HEAD
     references: {
       model: 'conversations',
       key: 'id'
     }
+=======
+    references: { model: 'conversations', key: 'id' }
+>>>>>>> a3d84ffc394df9cdb36df3aae0849c92dcd8cac3
   },
   from: {
     type: DataTypes.STRING(50),
@@ -45,6 +49,7 @@ const Message = sequelize.define('Message', {
     allowNull: true
   },
   mediaId: {
+<<<<<<< HEAD
     type: DataTypes.STRING(255)
   },
   mediaUrl: {
@@ -52,6 +57,18 @@ const Message = sequelize.define('Message', {
   },
   caption: {
     type: DataTypes.TEXT
+=======
+    type: DataTypes.STRING(255),
+    allowNull: true
+  },
+  mediaUrl: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
+  caption: {
+    type: DataTypes.TEXT,
+    allowNull: true
+>>>>>>> a3d84ffc394df9cdb36df3aae0849c92dcd8cac3
   },
   timestamp: {
     type: DataTypes.DATE,
@@ -59,6 +76,7 @@ const Message = sequelize.define('Message', {
   }
 }, {
   tableName: 'messages',
+<<<<<<< HEAD
   timestamps: true,
   indexes: [
     {
@@ -68,3 +86,9 @@ const Message = sequelize.define('Message', {
 });
 
 module.exports = Message;
+=======
+  timestamps: true
+});
+
+module.exports = Message;
+>>>>>>> a3d84ffc394df9cdb36df3aae0849c92dcd8cac3

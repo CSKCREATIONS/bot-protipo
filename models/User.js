@@ -11,6 +11,7 @@ const User = sequelize.define('User', {
   username: {
     type: DataTypes.STRING(100),
     allowNull: false,
+<<<<<<< HEAD
     unique: {
       msg: 'El nombre de usuario ya está en uso'
     },
@@ -45,11 +46,18 @@ const User = sequelize.define('User', {
           }
         }
       }
+=======
+    unique: true,
+    validate: {
+      len: [3, 50],
+      is: /^[a-zA-Z0-9_-]+$/
+>>>>>>> a3d84ffc394df9cdb36df3aae0849c92dcd8cac3
     }
   },
   email: {
     type: DataTypes.STRING(255),
     allowNull: false,
+<<<<<<< HEAD
     unique: {
       msg: 'El email ya está en uso'
     },
@@ -84,10 +92,15 @@ const User = sequelize.define('User', {
         }
       }
     }
+=======
+    unique: true,
+    validate: { isEmail: true }
+>>>>>>> a3d84ffc394df9cdb36df3aae0849c92dcd8cac3
   },
   password: {
     type: DataTypes.STRING(255),
     allowNull: false,
+<<<<<<< HEAD
     validate: {
       notEmpty: {
         msg: 'La contraseña no puede estar vacía'
@@ -128,8 +141,39 @@ const User = sequelize.define('User', {
 });
 
 // Método para comparar contraseñas
+=======
+    validate: { len: [6, 128] }
+  },
+  role: {
+    type: DataTypes.ENUM('admin', 'agent'),
+    defaultValue: 'agent'
+  }
+}, {
+  tableName: 'users',
+  timestamps: true,
+  hooks: {
+    beforeCreate: async (user) => {
+      if (user.password) {
+        const salt = await bcrypt.genSalt(10);
+        user.password = await bcrypt.hash(user.password, salt);
+      }
+    },
+    beforeUpdate: async (user) => {
+      if (user.changed('password')) {
+        const salt = await bcrypt.genSalt(10);
+        user.password = await bcrypt.hash(user.password, salt);
+      }
+    }
+  }
+});
+
+>>>>>>> a3d84ffc394df9cdb36df3aae0849c92dcd8cac3
 User.prototype.comparePassword = async function(candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
+<<<<<<< HEAD
 module.exports = User;
+=======
+module.exports = User;  
+>>>>>>> a3d84ffc394df9cdb36df3aae0849c92dcd8cac3

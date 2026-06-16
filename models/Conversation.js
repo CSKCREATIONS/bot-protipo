@@ -47,10 +47,14 @@ const Conversation = sequelize.define('Conversation', {
   assignedAgentId: {
     type: DataTypes.INTEGER,
     allowNull: true,
+<<<<<<< HEAD
     references: {
       model: 'users',
       key: 'id'
     }
+=======
+    references: { model: 'users', key: 'id' }
+>>>>>>> a3d84ffc394df9cdb36df3aae0849c92dcd8cac3
   },
   posicionEnCola: {
     type: DataTypes.INTEGER,
@@ -62,6 +66,7 @@ const Conversation = sequelize.define('Conversation', {
   }
 }, {
   tableName: 'conversations',
+<<<<<<< HEAD
   timestamps: true,
   indexes: [
     {
@@ -71,3 +76,9 @@ const Conversation = sequelize.define('Conversation', {
 });
 
 module.exports = Conversation;
+=======
+  timestamps: true
+});
+
+module.exports = Conversation;
+>>>>>>> a3d84ffc394df9cdb36df3aae0849c92dcd8cac3
